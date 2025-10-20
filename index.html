@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Solver Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sudoku Solver</h1>
+            <div class="controls">
+                <button id="newGame" class="btn btn-primary">New Game</button>
+                <button id="hint" class="btn btn-secondary">Hint</button>
+                <button id="solve" class="btn btn-warning">Review Answer</button>
+                <button id="check" class="btn btn-info">Check Solution</button>
+            </div>
+        </header>
+        
+        <main>
+            <div class="game-container">
+                <div id="sudoku-grid" class="sudoku-grid"></div>
+                <div class="game-info">
+                    <div class="timer">
+                        <span>Time: </span>
+                        <span id="timer">00:00</span>
+                    </div>
+                    <div class="game-mode">
+                        <span>Mode: </span>
+                        <select id="gameMode">
+                            <option value="normal">Normal Sudoku</option>
+                            <option value="killer">Killer Sudoku</option>
+                        </select>
+                    </div>
+                    <div class="difficulty">
+                        <span>Difficulty: </span>
+                        <select id="difficulty">
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status-message" id="statusMessage"></div>
+        </main>
+    </div>
+    
+    <script src="sudoku.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
