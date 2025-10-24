@@ -1,6 +1,42 @@
 #include "engine/SudokuSolver.h"
 #include <iostream>
 
+// Global solver instance for WASM
+static SudokuSolver* globalSolver = nullptr;
+
+#ifdef __EMSCRIPTEN__
+extern "C" {
+    // Initialize the solver
+    void initSolver() {
+        if (globalSolver) delete globalSolver;
+        globalSolver = new SudokuSolver();
+        globalSolver->init();
+    }
+
+    // Solve the puzzle
+    bool solvePuzzle() {
+        if (!globalSolver) return false;
+        return globalSolver->solve();
+    }
+
+    // Get board value at position (0-based indexing)
+    int getBoardValue(int row, int col) {
+        if (!globalSolver) return 0;
+        auto board = globalSolver->getBoard();
+        if (row < 0 || row >= 9 || col < 0 || col >= 9) return 0;
+        return board[row][col];
+    }
+
+    // Cleanup
+    void cleanupSolver() {
+        if (globalSolver) {
+            delete globalSolver;
+            globalSolver = nullptr;
+        }
+    }
+}
+#endif
+
 int main() {
     std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
     std::cout << "===========================" << std::endl;
