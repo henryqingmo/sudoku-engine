@@ -1,52 +1,21 @@
-#include "engine/SudokuSolver.h"
 #include <iostream>
 
-// Global solver instance for WASM
-static SudokuSolver* globalSolver = nullptr;
-
-#ifdef __EMSCRIPTEN__
-extern "C" {
-    // Initialize the solver
-    void initSolver() {
-        if (globalSolver) delete globalSolver;
-        globalSolver = new SudokuSolver();
-        globalSolver->init();
-    }
-
-    // Solve the puzzle
-    bool solvePuzzle() {
-        if (!globalSolver) return false;
-        return globalSolver->solve();
-    }
-
-    // Get board value at position (0-based indexing)
-    int getBoardValue(int row, int col) {
-        if (!globalSolver) return 0;
-        auto board = globalSolver->getBoard();
-        if (row < 0 || row >= 9 || col < 0 || col >= 9) return 0;
-        return board[row][col];
-    }
-
-    // Cleanup
-    void cleanupSolver() {
-        if (globalSolver) {
-            delete globalSolver;
-            globalSolver = nullptr;
-        }
-    }
-}
-#endif
+#include "engine/solver.h"
 
 int main() {
+    using sudoku_engine::Solver;
+    using sudoku_engine::Board;
+    using sudoku_engine::BoardCage;
+
     std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
     std::cout << "===========================" << std::endl;
-    
-    SudokuSolver solver;
-    solver.init();
-    
+
+    Solver solver;
+    Board board;
+
     // Killer sudoku puzzle configuration
     // Define cages with their target sums and cell coordinates (row, col)
-    std::vector<Cage> cages = {
+    std::vector<BoardCage> cages = {
         {6, {{5, 1}}},
         {7, {{8, 4}}},
         {13, {{0, 0}, {1, 0}}},
@@ -81,26 +50,25 @@ int main() {
         {15, {{8, 5}, {8, 6}, {7, 6}, {6, 6}}},
         {27, {{0, 5}, {0, 6}, {0, 7}, {1, 6}}}
     };
-    
+
     // Set up the puzzle
-    solver.setCages(cages);
-    
+    board.setCages(cages);
+
     // Optional: start with some given numbers (empty board for this example)
-    std::vector<std::vector<int>> initialBoard(9, std::vector<int>(9, 0));
-    solver.setBoard(initialBoard);
-    
-    std::cout << "\nInitial Board:" << std::endl;
-    solver.printBoard();
-    
-    std::cout << "\nSolving..." << std::endl;
-    
+    // ...
+
+    std::cout << std::endl << "Initial Board:" << std::endl;
+    board.print(std::cout);
+
+    std::cout << std::endl << "Solving..." << std::endl;
+
     // Solve the puzzle
-    if (solver.solve()) {
-        std::cout << "\n✓ Solution found!" << std::endl;
-        solver.printBoard();
+    if (solver.solve(board)) {
+        std::cout << std::endl << "[DONE] Solution found!" << std::endl;
+        board.print(std::cout);
     } else {
-        std::cout << "\n✗ No solution exists for this puzzle." << std::endl;
+        std::cout << std::endl << "[FAIL] No solution exists for this puzzle." << std::endl;
     }
-    
+
     return 0;
 }
