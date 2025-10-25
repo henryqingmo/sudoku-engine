@@ -38,3 +38,5 @@ web/public/wasm/*.wasm
 *.swo
 *~
 .DS_Store
+AGENTS.md
+.cache

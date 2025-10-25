@@ -39,11 +39,11 @@ if(EMSCRIPTEN)
         -sENVIRONMENT=web
     )
     
-    # Optional: Export functions if needed
-    # target_link_options(${PROJECT_NAME} PRIVATE
-    #     -sEXPORTED_FUNCTIONS=_main
-    #     -sEXPORTED_RUNTIME_METHODS=ccall,cwrap
-    # )
+    # Export functions for web interface
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -sEXPORTED_FUNCTIONS=_initSolver,_solvePuzzle,_getBoardValue,_cleanupSolver,_main
+        -sEXPORTED_RUNTIME_METHODS=ccall,cwrap
+    )
     
     # Copy WASM artifacts to Vue frontend
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

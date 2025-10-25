@@ -9,26 +9,169 @@
             font-family: system-ui, sans-serif;
             margin: 0;
             padding: 1.25rem 2.5rem;
+            background: #f5f5f5;
         }
 
         h1 {
             margin-block: 1.5rem;
+            text-align: center;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 1px;
+            background: #000;
+            border: 2px solid #000;
+            margin: 2rem auto;
+            width: 450px;
+            height: 450px;
+        }
+
+        .cell {
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            border: none;
+        }
+
+        .cell:nth-child(3n+3):not(:last-child) {
+            border-right: 3px solid #000;
+        }
+
+        .cell:nth-child(n+19):nth-child(-n+27) {
+            border-bottom: 3px solid #000;
+        }
+
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 3px solid #000;
+        }
+
+        .status {
+            text-align: center;
+            margin: 1rem 0;
+            font-size: 18px;
+        }
+
+        .solving { color: #f39c12; }
+        .success { color: #27ae60; }
+        .error { color: #e74c3c; }
+
+        button {
+            display: block;
+            margin: 1rem auto;
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
         }
     </style>
 </head>
 <body>
-    <main>
-        <h1>Sudoku Engine</h1>
-        <i>Check console output...</i>
-    </main>
-    
+    <div class="container">
+        <h1>Killer Sudoku Solver</h1>
+
+        <div class="sudoku-grid" id="sudoku-grid">
+            <!-- Grid cells will be created by JavaScript -->
+        </div>
+
+        <div class="status" id="status">Ready to solve!</div>
+
+        <button id="solve-btn" onclick="solveSudoku()">Solve Puzzle</button>
+    </div>
+
     <script type="module">
         import createSudokuModule from "./public/wasm/sudoku-engine.js"
 
         const Module = await createSudokuModule();
         console.log("Wasm ready", Module);
 
-        Module._main();
+        // Create the grid
+        const grid = document.getElementById('sudoku-grid');
+        const cells = [];
+
+        for (let row = 0; row < 9; row++) {
+            for (let col = 0; col < 9; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.row = row;
+                cell.dataset.col = col;
+                grid.appendChild(cell);
+                cells.push(cell);
+            }
+        }
+
+        function updateGrid() {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    const value = Module.ccall('getBoardValue', 'number', ['number', 'number'], [row, col]);
+                    const cell = cells[row * 9 + col];
+                    cell.textContent = value || '';
+                }
+            }
+        }
+
+        window.solveSudoku = async function() {
+            const btn = document.getElementById('solve-btn');
+            const status = document.getElementById('status');
+
+            btn.disabled = true;
+            status.textContent = 'Initializing solver...';
+            status.className = 'status solving';
+
+            try {
+                // Initialize solver
+                Module.ccall('initSolver', null, [], []);
+
+                status.textContent = 'Solving puzzle...';
+
+                // Solve the puzzle
+                const success = Module.ccall('solvePuzzle', 'boolean', [], []);
+
+                if (success) {
+                    status.textContent = '✓ Solution found!';
+                    status.className = 'status success';
+                    updateGrid();
+                } else {
+                    status.textContent = '✗ No solution exists for this puzzle.';
+                    status.className = 'status error';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                status.textContent = 'Error occurred while solving.';
+                status.className = 'status error';
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        // Cleanup when page unloads
+        window.addEventListener('beforeunload', () => {
+            Module.ccall('cleanupSolver', null, [], []);
+        });
     </script>
 </body>
 </html>
