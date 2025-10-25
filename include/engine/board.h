@@ -32,7 +32,7 @@ SUDOKU_NAMESPACE {
         unsigned sum;
 
         BoardCage(unsigned sum, std::vector<BoardPosition> cells)
-            : sum(sum), cells(std::move(cells)) {}
+            : cells(std::move(cells)), sum(sum) {}
     };
 
     template <class Data>
@@ -42,7 +42,7 @@ SUDOKU_NAMESPACE {
         std::size_t size;
 
     public:
-        BoardState(std::size_t size) : size(size), cells(size * size, 0) {}
+        BoardState(std::size_t size) : cells(size * size, 0), size(size) {}
         BoardState(std::size_t size, std::vector<Data> data)
             : size(size), cells(std::move(data)) {
             if (data.size() != size * size) {
