@@ -1,5 +1,5 @@
 #include <iostream>
-
+#include <chrono>
 #include "engine/solver.h"
 #include "heuristic/backtrack.h"
 #include "heuristic/forward.h"
@@ -70,13 +70,18 @@ int main() {
 
     // Solve the puzzle
     auto heuristic = ForwardHeuristic(board); // BacktrackHeuristic(board);
-    if (solver.solve(heuristic)) {
+    auto start = std::chrono::high_resolution_clock::now();
+    bool solved = solver.solve(heuristic);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    if (solved) {
         std::cout << std::endl << "[DONE] Solution found!" << std::endl;
         board.print(std::cout);
     } else {
         std::cout << std::endl << "[FAIL] No solution exists for this puzzle." << std::endl;
         board.print(std::cout);
     }
+    std::cout << std::endl << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
 
     return 0;
 }
