@@ -1,11 +1,17 @@
 #include <iostream>
 
 #include "engine/solver.h"
+#include "heuristic/backtrack.h"
+#include "heuristic/forward.h"
 
 int main() {
     using sudoku_engine::Solver;
+
     using sudoku_engine::Board;
     using sudoku_engine::BoardCage;
+
+    using sudoku_engine::BacktrackHeuristic;
+    using sudoku_engine::ForwardHeuristic;
 
     std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
     std::cout << "===========================" << std::endl;
@@ -63,11 +69,13 @@ int main() {
     std::cout << std::endl << "Solving..." << std::endl;
 
     // Solve the puzzle
-    if (solver.solve(board)) {
+    auto heuristic = ForwardHeuristic(board); // BacktrackHeuristic(board);
+    if (solver.solve(heuristic)) {
         std::cout << std::endl << "[DONE] Solution found!" << std::endl;
         board.print(std::cout);
     } else {
         std::cout << std::endl << "[FAIL] No solution exists for this puzzle." << std::endl;
+        board.print(std::cout);
     }
 
     return 0;

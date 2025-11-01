@@ -5,57 +5,87 @@
 
 using sudoku_engine::Board;
 
-bool Board::isInvalid() const {
-    return this->hasInvalidLines() || this->hasInvalidBoxes() ||
-           this->hasInvalidCages();
+static inline Board::LineOrBox makeLineOrBox() {
+    using namespace sudoku_engine;
+    return std::make_unique<std::array<BoardPosition, BOARD_SIZE>>();
 }
 
-bool Board::isInvalidLine(BoardOffset index, const BoardPosition& delta) const {
+Board::LineOrBox Board::getLine(
+    BoardOffset index,
+    const BoardPosition& delta
+) const {
     if (delta.row > 1 || delta.col > 1 || (delta.row == 0 && delta.col == 0)) {
         throw std::runtime_error(
             "Delta magnitude cannot be strictly between 0 and sqrt(2)"
         );
     }
 
-    // Represents whether each of 1-9 has already appeared
-    std::bitset<BOARD_SIZE> number_exists;
-
     BoardPosition pos = BoardPosition{
         static_cast<BoardOffset>((1 - delta.row) * index),
         static_cast<BoardOffset>((1 - delta.col) * index)
     };
 
-    while (pos.col < BOARD_SIZE && pos.row < BOARD_SIZE) {
-        const BoardCell& value = this->cell_values[pos];
-        if (value != CELL_EMPTY) {
-            if (number_exists.test(value - 1))
-                return true;
-            number_exists.set(value - 1, true);
-        }
+    LineOrBox line = makeLineOrBox();
+    for (std::size_t i = 0; pos.col < BOARD_SIZE && pos.row < BOARD_SIZE; i++) {
+        line->at(i) = pos;
         pos.row += delta.row;
         pos.col += delta.col;
+    }
+
+    return line;
+}
+
+Board::LineOrBox Board::getBox(BoardOffset index) const {
+    // 0 1 2
+    // 3 4 5
+    // 6 7 8
+    BoardOffset start_row = (index / 3) * 3;
+    BoardOffset start_col = (index % 3) * 3;
+
+    LineOrBox box = makeLineOrBox();
+
+    std::size_t i = 0;
+    for (BoardOffset row = start_row; row < start_row + 3; row++) {
+        for (BoardOffset col = start_col; col < start_col + 3; col++) {
+            box->at(i++) = {row, col};
+        }
+    }
+
+    return box;
+}
+
+bool Board::isInvalid() const {
+    return this->hasInvalidLines() || this->hasInvalidBoxes() ||
+           this->hasInvalidCages();
+}
+
+bool Board::isInvalidLine(BoardOffset index, const BoardPosition& delta) const {
+    // Represents whether each of 1-9 has already appeared
+    BoardCellDomain existing;
+
+    const auto line = this->getLine(index, delta);
+    for (const auto& cell_pos : *line) {
+        const BoardCell& value = this->cell_values[cell_pos];
+        if (value != CELL_EMPTY) {
+            if (existing.has(value))
+                return true;
+            existing.add(value);
+        }
     }
 
     return false;
 }
 
 bool Board::isInvalidBox(BoardOffset index) const {
-    // 0 1 2
-    // 3 4 5
-    // 6 7 8
-    BoardOffset startRow = (index / 3) * 3;
-    BoardOffset startCol = (index % 3) * 3;
+    BoardCellDomain existing;
 
-    std::bitset<BOARD_SIZE> number_exists;
-
-    for (BoardOffset row = startRow; row < startRow + 3; row++) {
-        for (BoardOffset col = startCol; col < startCol + 3; col++) {
-            const BoardCell& value = this->cell_values[{row, col}];
-            if (value != CELL_EMPTY) {
-                if (number_exists.test(value - 1))
-                    return true;
-                number_exists.set(value - 1, true);
-            }
+    const auto box = this->getBox(index);
+    for (const auto& cell_pos : *box) {
+        const BoardCell& value = this->cell_values[cell_pos];
+        if (value != CELL_EMPTY) {
+            if (existing.has(value))
+                return true;
+            existing.add(value);
         }
     }
 
@@ -63,49 +93,49 @@ bool Board::isInvalidBox(BoardOffset index) const {
 }
 
 bool Board::isInvalidCage(const BoardCage& cage) const {
-    std::bitset<BOARD_SIZE> number_exists;
+    BoardCellDomain existing;
 
     // Check if num already exists in the cage (killer sudoku rule: no duplicates in cage)
     for (const auto& pos : cage.cells) {
         const BoardCell& value = this->cell_values[pos];
         if (value != CELL_EMPTY) {
-            if (number_exists.test(value - 1))
+            if (existing.has(value))
                 return true;
-            number_exists.set(value - 1, true);
+            existing.add(value);
         }
     }
 
     // Calculate current sum and count filled cells
-    unsigned currentSum = 0;
-    BoardOffset filledCount = 1;  // Including the value we're trying to place
-    BoardOffset emptyCount = 0;
+    unsigned current_sum = 0;
+    BoardOffset filled_count = 0;
+    BoardOffset empty_count = 0;
 
     for (const auto& pos : cage.cells) {
         const BoardCell& value = this->cell_values[pos];
         if (value != CELL_EMPTY) {
-            currentSum += value;
-            filledCount++;
+            current_sum += value;
+            filled_count++;
         } else {
-            emptyCount++;
+            empty_count++;
         }
     }
 
     // If sum already exceeds target, invalid
-    if (currentSum > cage.sum) {
+    if (current_sum > cage.sum) {
         return true;
     }
 
     // If cage is complete, check if sum matches
-    if (emptyCount == 0) {
-        return currentSum != cage.sum;
+    if (empty_count == 0) {
+        return current_sum != cage.sum;
     }
 
     // Check if remaining cells can possibly reach the target sum
     // Minimum possible remaining: 1 * emptyCount
     // Maximum possible remaining: 9 * emptyCount (but constrained by sudoku rules)
-    const int remaining = static_cast<int>(cage.sum) - currentSum;
+    const int remaining = static_cast<int>(cage.sum) - current_sum;
 
-    if (remaining < emptyCount || remaining > 9 * emptyCount) {
+    if (remaining < empty_count || remaining > 9 * empty_count) {
         return true;
     }
 
@@ -144,7 +174,7 @@ bool Board::isInvalid(const BoardPosition& pos) const {
         return true;
     }
 
-    const BoardOffset box = (pos.row / 3) * 3 + (pos.col / 3);
+    const BoardOffset box = this->getCellBox(pos);
     if (this->isInvalidBox(box)) {
         return true;
     }

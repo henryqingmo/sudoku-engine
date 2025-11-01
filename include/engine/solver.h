@@ -3,7 +3,7 @@
 #include <utility>
 #include <vector>
 
-#include "board.h"
+#include "../heuristic/heuristic.h"
 
 SUDOKU_NAMESPACE {
     class Solver {
@@ -11,10 +11,6 @@ SUDOKU_NAMESPACE {
         Solver();
         ~Solver();
 
-        bool solve(Board& board);
-
-    private:
-        // Backtracking solver
-        bool solveBacktrack(Board& board, BoardPosition pos);
+        bool solve(Heuristic& heuristic);
     };
 }
