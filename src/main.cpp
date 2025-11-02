@@ -1,27 +1,18 @@
+#include <ctime>
 #include <iostream>
+#include <string_view>
 
 #include "engine/solver.h"
 #include "heuristic/backtrack.h"
 #include "heuristic/forward.h"
 
-int main() {
-    using sudoku_engine::Solver;
-
+static inline sudoku_engine::Board makeTestBoard() {
     using sudoku_engine::Board;
     using sudoku_engine::BoardCage;
 
-    using sudoku_engine::BacktrackHeuristic;
-    using sudoku_engine::ForwardHeuristic;
-
-    std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
-    std::cout << "===========================" << std::endl;
-
-    Solver solver;
-    Board board;
-
     // Killer sudoku puzzle configuration
     // Define cages with their target sums and cell coordinates (row, col)
-    std::vector<BoardCage> cages = {
+    static const BoardCage cages[] = {
         {6, {{5, 1}}},
         {7, {{8, 4}}},
         {13, {{0, 0}, {1, 0}}},
@@ -58,10 +49,50 @@ int main() {
     };
 
     // Set up the puzzle
+    Board board;
     board.setCages(cages);
 
     // Optional: start with some given numbers (empty board for this example)
     // ...
+
+    return board;
+}
+
+int main(int argc, char* argv[]) {
+    using sudoku_engine::BacktrackHeuristic;
+    using sudoku_engine::Board;
+    using sudoku_engine::ForwardHeuristic;
+    using sudoku_engine::Heuristic;
+    using sudoku_engine::Solver;
+
+    std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
+    std::cout << "===========================" << std::endl;
+
+    const std::string_view arg = (argc > 1) ? argv[1] : "backtrack";
+
+    if (arg == "" || arg == "--help") {
+        const std::string_view exe_path = argv[0];
+        const std::size_t exe_path_last_sep = exe_path.find_last_of("/\\");
+        const std::string_view exe_name =
+            exe_path_last_sep == exe_path.npos ?
+                exe_path :
+                exe_path.substr(exe_path_last_sep + 1);
+        std::cout << "Usage: " << exe_name << " [heuristic]" << std::endl;
+        return 1;
+    }
+
+    Solver solver;
+    Board board = makeTestBoard();
+
+    std::unique_ptr<Heuristic> heuristic = nullptr;
+    if (arg == "forward") {
+        heuristic = std::make_unique<ForwardHeuristic>(board);
+    } else if (arg == "backtrack") {
+        heuristic = std::make_unique<BacktrackHeuristic>(board);
+    } else {
+        std::cout << "Invalid heuristic: " << arg << std::endl;
+        return 1;
+    }
 
     std::cout << std::endl << "Initial Board:" << std::endl;
     board.print(std::cout);
@@ -69,14 +100,24 @@ int main() {
     std::cout << std::endl << "Solving..." << std::endl;
 
     // Solve the puzzle
-    auto heuristic = ForwardHeuristic(board); // BacktrackHeuristic(board);
-    if (solver.solve(heuristic)) {
+    std::clock_t solving_start = std::clock();
+    const bool solution_found = solver.solve(*heuristic);
+    std::clock_t solving_end = std::clock();
+
+    if (solution_found) {
         std::cout << std::endl << "[DONE] Solution found!" << std::endl;
         board.print(std::cout);
     } else {
-        std::cout << std::endl << "[FAIL] No solution exists for this puzzle." << std::endl;
+        std::cout << std::endl
+                  << "[FAIL] No solution exists for this puzzle." << std::endl;
         board.print(std::cout);
     }
+
+    const auto cpu_time_taken =
+        (solving_end - solving_start) / static_cast<double>(CLOCKS_PER_SEC);
+
+    std::cout << std::endl;
+    std::cout << "CPU Time Taken: " << cpu_time_taken << " seconds" << std::endl;
 
     return 0;
 }

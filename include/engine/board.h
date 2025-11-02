@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "../base.h"
+#include "../utils.h"
 
 SUDOKU_NAMESPACE {
     constexpr int BOARD_SIZE = 9;
@@ -31,9 +32,22 @@ SUDOKU_NAMESPACE {
         constexpr BoardPosition(BoardOffset row, BoardOffset col)
             : row(row), col(col) {}
 
+        // Convert to index in a flat representation
+        std::size_t toOffset() const {
+            if (this->row >= BOARD_SIZE || this->col >= BOARD_SIZE)
+                throw std::out_of_range("Invalid board position");
+            return static_cast<std::size_t>(BOARD_SIZE) * this->row + this->col;
+        }
+
         constexpr bool operator==(const BoardPosition& other) const {
             return this->row == other.row && this->col == other.col;
         }
+
+        struct Hasher {
+            std::size_t operator()(const BoardPosition& pos) const {
+                return pos.toOffset();
+            }
+        };
     };
 
     struct BoardCage {
@@ -133,18 +147,11 @@ SUDOKU_NAMESPACE {
         }
 
         Data& operator[](const BoardPosition& pos) {
-            return this->cells[this->getPositionOffset(pos)];
+            return this->cells[pos.toOffset()];
         }
 
         const Data& operator[](const BoardPosition& pos) const {
-            return this->cells[this->getPositionOffset(pos)];
-        }
-
-    private:
-        std::size_t getPositionOffset(const BoardPosition& pos) const {
-            if (pos.row >= BOARD_SIZE || pos.col >= BOARD_SIZE)
-                throw std::out_of_range("Invalid board position");
-            return pos.row * this->size + pos.col;
+            return this->cells[pos.toOffset()];
         }
     };
 

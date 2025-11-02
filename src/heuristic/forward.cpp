@@ -40,8 +40,9 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
     DomainDeltas& iteration_deltas = this->deltas.top();
 
     const auto refine_domain = [&](const BoardPosition& p) -> bool {
-        iteration_deltas.push_back({p, this->cell_domains[p]});
         auto& domain = this->cell_domains[p];
+        // Already-refined domains will be ignored...
+        iteration_deltas.insert({p, domain});
         domain.remove(new_value);
         return !domain.empty();
     };
