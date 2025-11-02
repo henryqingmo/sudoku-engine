@@ -5,53 +5,66 @@
 
 using sudoku_engine::Board;
 
-static inline Board::LineOrBox makeLineOrBox() {
-    using namespace sudoku_engine;
-    return std::make_unique<std::array<BoardPosition, BOARD_SIZE>>();
-}
+using LineOrBoxCache =
+    std::array<sudoku_engine::Board::LineOrBox, sudoku_engine::BOARD_SIZE>;
 
-Board::LineOrBox Board::getLine(
-    BoardOffset index,
-    const BoardPosition& delta
-) const {
-    if (delta.row > 1 || delta.col > 1 || (delta.row == 0 && delta.col == 0)) {
-        throw std::runtime_error(
-            "Delta magnitude cannot be strictly between 0 and sqrt(2)"
-        );
-    }
+const Board::LineOrBox& Board::getRow(BoardOffset index) const {
+    static const auto row_cache = ([]() {
+        auto rows = std::make_unique<LineOrBoxCache>();
 
-    BoardPosition pos = BoardPosition{
-        static_cast<BoardOffset>((1 - delta.row) * index),
-        static_cast<BoardOffset>((1 - delta.col) * index)
-    };
-
-    LineOrBox line = makeLineOrBox();
-    for (std::size_t i = 0; pos.col < BOARD_SIZE && pos.row < BOARD_SIZE; i++) {
-        line->at(i) = pos;
-        pos.row += delta.row;
-        pos.col += delta.col;
-    }
-
-    return line;
-}
-
-Board::LineOrBox Board::getBox(BoardOffset index) const {
-    // 0 1 2
-    // 3 4 5
-    // 6 7 8
-    BoardOffset start_row = (index / 3) * 3;
-    BoardOffset start_col = (index % 3) * 3;
-
-    LineOrBox box = makeLineOrBox();
-
-    std::size_t i = 0;
-    for (BoardOffset row = start_row; row < start_row + 3; row++) {
-        for (BoardOffset col = start_col; col < start_col + 3; col++) {
-            box->at(i++) = {row, col};
+        for (BoardOffset row = 0; row < BOARD_SIZE; row++) {
+            for (BoardOffset col = 0; col < BOARD_SIZE; col++) {
+                rows->at(row)[col] = {row, col};
+            }
         }
-    }
 
-    return box;
+        return rows;
+    })();
+
+    return row_cache->at(index);
+}
+
+const Board::LineOrBox& Board::getCol(BoardOffset index) const {
+    static const auto col_cache = ([]() {
+        auto cols = std::make_unique<LineOrBoxCache>();
+
+        for (BoardOffset col = 0; col < BOARD_SIZE; col++) {
+            for (BoardOffset row = 0; row < BOARD_SIZE; row++) {
+                cols->at(col)[row] = {row, col};
+            }
+        }
+
+        return cols;
+    })();
+
+    return col_cache->at(index);
+}
+
+// 0 1 2
+// 3 4 5
+// 6 7 8
+const Board::LineOrBox& Board::getBox(BoardOffset index) const {
+    static const auto box_cache = ([]() {
+        auto boxes = std::make_unique<LineOrBoxCache>();
+
+        for (BoardOffset index = 0; index < BOARD_SIZE; index++) {
+            BoardOffset start_row = (index / 3) * 3;
+            BoardOffset start_col = (index % 3) * 3;
+
+            LineOrBox& box = boxes->at(index);
+
+            std::size_t i = 0;
+            for (BoardOffset row = start_row; row < start_row + 3; row++) {
+                for (BoardOffset col = start_col; col < start_col + 3; col++) {
+                    box[i++] = {row, col};
+                }
+            }
+        }
+
+        return boxes;
+    })();
+
+    return box_cache->at(index);
 }
 
 bool Board::isInvalid() const {
@@ -59,28 +72,11 @@ bool Board::isInvalid() const {
            this->hasInvalidCages();
 }
 
-bool Board::isInvalidLine(BoardOffset index, const BoardPosition& delta) const {
+bool Board::isInvalidLineOrBox(const LineOrBox& cells) const {
     // Represents whether each of 1-9 has already appeared
     BoardCellDomain existing;
 
-    const auto line = this->getLine(index, delta);
-    for (const auto& cell_pos : *line) {
-        const BoardCell& value = this->cell_values[cell_pos];
-        if (value != CELL_EMPTY) {
-            if (existing.has(value))
-                return true;
-            existing.add(value);
-        }
-    }
-
-    return false;
-}
-
-bool Board::isInvalidBox(BoardOffset index) const {
-    BoardCellDomain existing;
-
-    const auto box = this->getBox(index);
-    for (const auto& cell_pos : *box) {
+    for (const auto& cell_pos : cells) {
         const BoardCell& value = this->cell_values[cell_pos];
         if (value != CELL_EMPTY) {
             if (existing.has(value))
@@ -153,7 +149,7 @@ bool Board::hasInvalidLines() const {
 
 bool Board::hasInvalidBoxes() const {
     for (BoardOffset index = 0; index < BOARD_SIZE; index++) {
-        if (this->isInvalidBox(index)) {
+        if (this->isInvalidLineOrBox(this->getBox(index))) {
             return true;
         }
     }
@@ -174,8 +170,8 @@ bool Board::isInvalid(const BoardPosition& pos) const {
         return true;
     }
 
-    const BoardOffset box = this->getCellBox(pos);
-    if (this->isInvalidBox(box)) {
+    const BoardOffset box_index = this->getCellBox(pos);
+    if (this->isInvalidLineOrBox(this->getBox(box_index))) {
         return true;
     }
 

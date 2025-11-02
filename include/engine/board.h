@@ -157,8 +157,7 @@ SUDOKU_NAMESPACE {
 
     class Board {
     public:
-        using LineOrBox =
-            std::unique_ptr<std::array<BoardPosition, BOARD_SIZE>>;
+        using LineOrBox = std::array<BoardPosition, BOARD_SIZE>;
 
     private:
         BoardState<BoardCell> cell_values;
@@ -187,8 +186,9 @@ SUDOKU_NAMESPACE {
             return this->cell_values.contains(0);
         }
 
-        LineOrBox getLine(BoardOffset index, const BoardPosition& delta) const;
-        LineOrBox getBox(BoardOffset index) const;
+        const LineOrBox& getRow(BoardOffset index) const;
+        const LineOrBox& getCol(BoardOffset index) const;
+        const LineOrBox& getBox(BoardOffset index) const;
 
         constexpr BoardOffset getCellBox(const BoardPosition& pos) const {
             return (pos.row / BOX_SIZE) * BOX_SIZE + (pos.col / BOX_SIZE);
@@ -205,16 +205,16 @@ SUDOKU_NAMESPACE {
         bool hasInvalidBoxes() const;
         bool hasInvalidCages() const;
 
-        bool isInvalidLine(BoardOffset index, const BoardPosition& delta) const;
-        bool isInvalidBox(BoardOffset index) const;
+        bool isInvalidLineOrBox(const LineOrBox& cells) const;
+
         bool isInvalidCage(const BoardCage& cage) const;
 
         bool isInvalidRow(BoardOffset row) const {
-            return this->isInvalidLine(row, {0, 1});
+            return this->isInvalidLineOrBox(this->getRow(row));
         }
 
         bool isInvalidCol(BoardOffset col) const {
-            return this->isInvalidLine(col, {1, 0});
+            return this->isInvalidLineOrBox(this->getCol(col));
         }
     };
 }

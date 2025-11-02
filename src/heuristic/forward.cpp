@@ -47,22 +47,22 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
         return !domain.empty();
     };
 
-    const auto row = this->board.getLine(pos.row, {0, 1});
-    for (const auto& p : *row) {
+    const auto row = this->board.getRow(pos.row);
+    for (const auto& p : row) {
         if (p.col != pos.col && !refine_domain(p)) {
             return false;
         }
     }
 
-    const auto col = this->board.getLine(pos.col, {1, 0});
-    for (const auto& p : *col) {
+    const auto col = this->board.getCol(pos.col);
+    for (const auto& p : col) {
         if (p.row != pos.row && !refine_domain(p)) {
             return false;
         }
     }
 
     const auto box = this->board.getBox(this->board.getCellBox(pos));
-    for (const auto& p : *box) {
+    for (const auto& p : box) {
         if (p != pos && !refine_domain(p)) {
             return false;
         }

@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
     std::cout << "===========================" << std::endl;
 
-    const std::string_view arg = (argc > 1) ? argv[1] : "backtrack";
+    const std::string_view arg = (argc > 1) ? argv[1] : "forward";
 
     if (arg == "" || arg == "--help") {
         const std::string_view exe_path = argv[0];
