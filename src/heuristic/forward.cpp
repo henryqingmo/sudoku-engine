@@ -1,3 +1,5 @@
+#include <span>
+
 #include "heuristic/forward.h"
 
 using sudoku_engine::BoardCellDomain;
@@ -26,7 +28,11 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
 
     // Reset domains when backtracking...
     if (new_value == CELL_EMPTY) {
-        for (auto& [p, domain] : this->deltas.top()) {
+        const auto iteration_deltas = std::span(
+            this->deltas.top().first.get(), this->deltas.top().second
+        );
+
+        for (auto& [p, domain] : iteration_deltas) {
             this->cell_domains[p] = std::move(domain);
         }
 
@@ -34,24 +40,25 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
         return true;
     }
 
-    this->deltas.push({});
-
-    DomainDeltas& iteration_deltas = this->deltas.top();
-    std::bitset<BOARD_SIZE * BOARD_SIZE> is_refined;
-
     constexpr std::size_t ITERATION_DELTA_MIN = 9 + 8 + 4;
 
     const auto cage = this->board.getCellCage(pos);
-    if (cage != nullptr) {
-        iteration_deltas.reserve(ITERATION_DELTA_MIN + cage->cells.size() - 1);
-    } else {
-        iteration_deltas.reserve(ITERATION_DELTA_MIN);
-    }
 
-    iteration_deltas.push_back({pos, this->cell_domains[pos]});
+    std::size_t delta_capacity = ITERATION_DELTA_MIN;
+    if (cage != nullptr) {
+        delta_capacity += cage->cells.size() - 1;
+    }
+    
+    this->deltas.emplace(std::make_unique<DomainDelta[]>(delta_capacity), 1);
+
+    const auto& iteration_deltas = this->deltas.top().first;
+    std::bitset<BOARD_SIZE * BOARD_SIZE> is_refined;
+
+    iteration_deltas[0] = {pos, this->cell_domains[pos]};
     this->cell_domains[pos] = {new_value};
     is_refined[pos.toOffset()] = true;
 
+    std::size_t& delta_count = this->deltas.top().second;
     const auto refine_domain = [&](const BoardPosition& p) -> bool {
         // Already-refined domains will be ignored...
         if (is_refined[p.toOffset()])
@@ -62,7 +69,11 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
         if (!domain.has(new_value))
             return !domain.empty();
 
-        iteration_deltas.push_back({p, domain});
+        if (delta_count >= delta_capacity) {
+            throw std::runtime_error("Too many deltas for iteration");
+        }
+
+        iteration_deltas[delta_count++] = {p, domain};
 
         domain.remove(new_value);
         is_refined[p.toOffset()] = true;

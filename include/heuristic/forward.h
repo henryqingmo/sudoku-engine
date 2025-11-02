@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <stack>
 #include <tuple>
 #include <unordered_map>
@@ -10,8 +11,9 @@
 SUDOKU_NAMESPACE {
     class ForwardHeuristic final : public BacktrackHeuristic {
     private:
+        using DomainDelta = std::pair<BoardPosition, BoardCellDomain>;
         using DomainDeltas =
-            std::vector<std::pair<BoardPosition, BoardCellDomain>>;
+            std::pair<std::unique_ptr<DomainDelta[]>, std::size_t>;
 
         // using DomainDeltas = std::unordered_map<
         //     BoardPosition,
