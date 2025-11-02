@@ -18,6 +18,8 @@ bool BacktrackHeuristic::solve(BoardPosition pos) {
         return true;
     }
 
+    this->step_count++;
+
     auto& cell_values = this->board.getValues();
 
     // Skip cells that are already filled

@@ -33,7 +33,7 @@ SUDOKU_NAMESPACE {
             : row(row), col(col) {}
 
         // Convert to index in a flat representation
-        std::size_t toOffset() const {
+        constexpr std::size_t toOffset() const {
             if (this->row >= BOARD_SIZE || this->col >= BOARD_SIZE)
                 throw std::out_of_range("Invalid board position");
             return static_cast<std::size_t>(BOARD_SIZE) * this->row + this->col;

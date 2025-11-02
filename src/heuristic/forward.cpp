@@ -34,44 +34,66 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
         return true;
     }
 
-    this->deltas.push({{pos, this->cell_domains[pos]}});
-    this->cell_domains[pos] = {new_value};
+    this->deltas.push({});
 
     DomainDeltas& iteration_deltas = this->deltas.top();
+    std::bitset<BOARD_SIZE * BOARD_SIZE> is_refined;
+
+    constexpr std::size_t ITERATION_DELTA_MIN = 9 + 8 + 4;
+
+    const auto cage = this->board.getCellCage(pos);
+    if (cage != nullptr) {
+        iteration_deltas.reserve(ITERATION_DELTA_MIN + cage->cells.size() - 1);
+    } else {
+        iteration_deltas.reserve(ITERATION_DELTA_MIN);
+    }
+
+    iteration_deltas.push_back({pos, this->cell_domains[pos]});
+    this->cell_domains[pos] = {new_value};
+    is_refined[pos.toOffset()] = true;
 
     const auto refine_domain = [&](const BoardPosition& p) -> bool {
-        auto& domain = this->cell_domains[p];
         // Already-refined domains will be ignored...
-        iteration_deltas.insert({p, domain});
+        if (is_refined[p.toOffset()])
+            return true;
+
+        auto& domain = this->cell_domains[p];
+
+        if (!domain.has(new_value))
+            return !domain.empty();
+
+        iteration_deltas.push_back({p, domain});
+
         domain.remove(new_value);
+        is_refined[p.toOffset()] = true;
+
         return !domain.empty();
     };
 
     const auto row = this->board.getRow(pos.row);
     for (const auto& p : row) {
-        if (p.col != pos.col && !refine_domain(p)) {
+        if (!refine_domain(p)) {
             return false;
         }
     }
 
     const auto col = this->board.getCol(pos.col);
     for (const auto& p : col) {
-        if (p.row != pos.row && !refine_domain(p)) {
+        if (!refine_domain(p)) {
             return false;
         }
     }
 
     const auto box = this->board.getBox(this->board.getCellBox(pos));
     for (const auto& p : box) {
-        if (p != pos && !refine_domain(p)) {
+        if (!refine_domain(p)) {
             return false;
         }
     }
 
-    const auto cage = this->board.getCellCage(pos);
     if (cage != nullptr) {
         for (const auto& p : cage->cells) {
-            if (p != pos && !refine_domain(p)) {
+            if (!refine_domain(p)) {
                 return false;
             }
         }

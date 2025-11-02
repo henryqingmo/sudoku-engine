@@ -3,16 +3,20 @@
 #include <stack>
 #include <tuple>
 #include <unordered_map>
+#include <vector>
 
 #include "backtrack.h"
 
 SUDOKU_NAMESPACE {
     class ForwardHeuristic final : public BacktrackHeuristic {
     private:
-        using DomainDeltas = std::unordered_map<
-            BoardPosition,
-            BoardCellDomain,
-            BoardPosition::Hasher>;
+        using DomainDeltas =
+            std::vector<std::pair<BoardPosition, BoardCellDomain>>;
+
+        // using DomainDeltas = std::unordered_map<
+        //     BoardPosition,
+        //     BoardCellDomain,
+        //     BoardPosition::Hasher>;
 
         BoardState<BoardCellDomain> cell_domains;
         std::stack<DomainDeltas> deltas;

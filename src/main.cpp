@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
     Solver solver;
     Board board = makeTestBoard();
 
-    std::unique_ptr<Heuristic> heuristic = nullptr;
+    std::unique_ptr<BacktrackHeuristic> heuristic = nullptr;
     if (arg == "forward") {
         heuristic = std::make_unique<ForwardHeuristic>(board);
     } else if (arg == "backtrack") {
@@ -118,6 +118,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << std::endl;
     std::cout << "CPU Time Taken: " << cpu_time_taken << " seconds" << std::endl;
+    std::cout << "Steps Taken:    " << heuristic->getStepCount() << std::endl;
 
     return 0;
 }
