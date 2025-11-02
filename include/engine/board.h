@@ -97,9 +97,26 @@ SUDOKU_NAMESPACE {
         }
 
         [[nodiscard]]
-        BoardCellDomain operator-() const {
+        bool full() const {
+            return this->exists.all();
+        }
+
+        [[nodiscard]]
+        bool operator==(const BoardCellDomain& other) const {
+            return this->exists == other.exists;
+        }
+
+        [[nodiscard]]
+        BoardCellDomain operator~() const {
             BoardCellDomain result = *this;
             result.flip();
+            return result;
+        }
+
+        [[nodiscard]]
+        BoardCellDomain operator&(const BoardCellDomain& other) const {
+            BoardCellDomain result = *this;
+            result.exists &= other.exists;
             return result;
         }
 

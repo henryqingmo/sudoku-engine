@@ -28,7 +28,7 @@ bool BacktrackHeuristic::solve(BoardPosition pos) {
     }
 
     const auto invalid_choices = this->getInvalidChoices(pos);
-    if ((-invalid_choices).empty()) {
+    if (invalid_choices.full()) {
         return false;
     }
 

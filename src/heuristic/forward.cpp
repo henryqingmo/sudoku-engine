@@ -6,7 +6,7 @@ using sudoku_engine::BoardCellDomain;
 using sudoku_engine::ForwardHeuristic;
 
 ForwardHeuristic::ForwardHeuristic(Board& board)
-    : BacktrackHeuristic(board), cell_domains(BOARD_SIZE, -BoardCellDomain()) {
+    : BacktrackHeuristic(board), cell_domains(BOARD_SIZE, ~BoardCellDomain()) {
     BoardPosition pos = {0, 0};
     for (pos.row = 0; pos.row < BOARD_SIZE; pos.row++) {
         for (pos.col = 0; pos.col < BOARD_SIZE; pos.col++) {
@@ -20,7 +20,7 @@ ForwardHeuristic::ForwardHeuristic(Board& board)
 BoardCellDomain ForwardHeuristic::getInvalidChoices(
     const BoardPosition& pos
 ) const {
-    return -this->cell_domains[pos];
+    return ~this->cell_domains[pos];
 }
 
 bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
@@ -28,9 +28,7 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
 
     // Reset domains when backtracking...
     if (new_value == CELL_EMPTY) {
-        const auto iteration_deltas = std::span(
-            this->deltas.top().first.get(), this->deltas.top().second
-        );
+        const auto iteration_deltas = this->deltas.top().data();
 
         for (auto& [p, domain] : iteration_deltas) {
             this->cell_domains[p] = std::move(domain);
@@ -48,17 +46,22 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
     if (cage != nullptr) {
         delta_capacity += cage->cells.size() - 1;
     }
-    
-    this->deltas.emplace(std::make_unique<DomainDelta[]>(delta_capacity), 1);
 
-    const auto& iteration_deltas = this->deltas.top().first;
+    this->deltas.emplace(delta_capacity);
+
+    auto& iteration_deltas = this->deltas.top();
     std::bitset<BOARD_SIZE * BOARD_SIZE> is_refined;
 
-    iteration_deltas[0] = {pos, this->cell_domains[pos]};
+    iteration_deltas.append({pos, this->cell_domains[pos]});
     this->cell_domains[pos] = {new_value};
     is_refined[pos.toOffset()] = true;
 
-    std::size_t& delta_count = this->deltas.top().second;
+    const auto save_for_refine = [&](const BoardPosition& p,
+                                    const BoardCellDomain& old_domain) -> void {
+        iteration_deltas.append({p, old_domain});
+        is_refined[p.toOffset()] = true;
+    };
+
     const auto refine_domain = [&](const BoardPosition& p) -> bool {
         // Already-refined domains will be ignored...
         if (is_refined[p.toOffset()])
@@ -69,14 +72,8 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
         if (!domain.has(new_value))
             return !domain.empty();
 
-        if (delta_count >= delta_capacity) {
-            throw std::runtime_error("Too many deltas for iteration");
-        }
-
-        iteration_deltas[delta_count++] = {p, domain};
-
+        save_for_refine(p, domain);
         domain.remove(new_value);
-        is_refined[p.toOffset()] = true;
 
         return !domain.empty();
     };
@@ -103,12 +100,75 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
     }
 
     if (cage != nullptr) {
+        const auto cage_domain = this->getValidCageValues(*cage);
         for (const auto& p : cage->cells) {
-            if (!refine_domain(p)) {
+            // if (!refine_domain(p)) {
+            //     return false;
+            // }
+
+            // Note that cage_domain only apply to empty cells!
+            if (p == pos || this->board.getValues()[p] != CELL_EMPTY) {
+                continue;
+            }
+
+            auto& domain = this->cell_domains[p];
+
+            if (!is_refined[p.toOffset()]) {
+                save_for_refine(p, domain);
+                domain.remove(new_value);
+            }
+
+            domain = domain & cage_domain;
+
+            if (domain.empty()) {
                 return false;
             }
         }
     }
 
     return true;
+}
+
+BoardCellDomain ForwardHeuristic::getValidCageValues(
+    const BoardCage& cage
+) const {
+    unsigned empty_cell_count = 0;
+    long remaining_sum = cage.sum;
+
+    for (const auto& cell_pos : cage.cells) {
+        const auto value = this->board.getValues()[cell_pos];
+        if (value == CELL_EMPTY) {
+            empty_cell_count++;
+        } else {
+            remaining_sum -= value;
+        }
+    }
+
+    if (empty_cell_count == 1) {
+        // Only one cell left: it must be equal to remaining_sum
+        if (remaining_sum >= CELL_MIN && remaining_sum <= CELL_MAX) {
+            return {static_cast<BoardCell>(remaining_sum)};
+        }
+        return BoardCellDomain();
+    }
+
+    BoardCellDomain valid_values;
+
+    const long min_remaining = (empty_cell_count - 1) * CELL_MIN;
+    const long max_remaining = (empty_cell_count - 1) * CELL_MAX;
+
+    // Check if each value could be part of a valid solution
+    for (BoardCell value = CELL_MIN; value <= CELL_MAX; value++) {
+        const long new_remaining = remaining_sum - value;
+
+        if (new_remaining < 0) {
+            continue;
+        }
+
+        if (new_remaining >= min_remaining && new_remaining <= max_remaining) {
+            valid_values.add(value);
+        }
+    }
+
+    return valid_values;
 }
