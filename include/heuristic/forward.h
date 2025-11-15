@@ -39,7 +39,7 @@ SUDOKU_NAMESPACE {
         bool expand(const BoardPosition& pos) override;
 
     private:
-        RefinedDomains forwardCheck(const BoardPosition& pos, bool recursive) const;
+        RefinedDomains forwardCheck(const BoardPosition& pos) const;
 
         BoardCellDomain getValidCageValues(const BoardCage& cage) const;
         BoardPosition findMrvCell() const;

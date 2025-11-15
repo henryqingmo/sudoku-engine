@@ -21,8 +21,7 @@ ForwardHeuristic::ForwardHeuristic(Board& board, bool mrv, bool lcv)
 }
 
 ForwardHeuristic::RefinedDomains ForwardHeuristic::forwardCheck(
-    const BoardPosition& pos,
-    const bool recursive
+    const BoardPosition& pos
 ) const {
     const BoardCell new_value = this->board.getValues()[pos];
 
@@ -248,7 +247,7 @@ bool ForwardHeuristic::expand(const BoardPosition& pos) {
             continue;
         }
 
-        auto refinement = this->forwardCheck(pos, false);
+        auto refinement = this->forwardCheck(pos);
         if (!refinement.is_legal) {
             continue;
         }
