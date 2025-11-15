@@ -1,12 +1,15 @@
-#include <span>
+#include <algorithm>
+#include <cassert>
 
 #include "heuristic/forward.h"
 
 using sudoku_engine::BoardCellDomain;
+using sudoku_engine::BoardPosition;
 using sudoku_engine::ForwardHeuristic;
 
-ForwardHeuristic::ForwardHeuristic(Board& board)
-    : BacktrackHeuristic(board), cell_domains(BOARD_SIZE, ~BoardCellDomain()) {
+ForwardHeuristic::ForwardHeuristic(Board& board, bool mrv, bool lcv)
+    : BacktrackHeuristic(board), cell_domains(BOARD_SIZE, ~BoardCellDomain()),
+      mrv(mrv), lcv(lcv) {
     BoardPosition pos = {0, 0};
     for (pos.row = 0; pos.row < BOARD_SIZE; pos.row++) {
         for (pos.col = 0; pos.col < BOARD_SIZE; pos.col++) {
@@ -17,26 +20,11 @@ ForwardHeuristic::ForwardHeuristic(Board& board)
     }
 }
 
-BoardCellDomain ForwardHeuristic::getInvalidChoices(
-    const BoardPosition& pos
+ForwardHeuristic::RefinedDomains ForwardHeuristic::forwardCheck(
+    const BoardPosition& pos,
+    const bool recursive
 ) const {
-    return ~this->cell_domains[pos];
-}
-
-bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
     const BoardCell new_value = this->board.getValues()[pos];
-
-    // Reset domains when backtracking...
-    if (new_value == CELL_EMPTY) {
-        const auto iteration_deltas = this->deltas.top().data();
-
-        for (auto& [p, domain] : iteration_deltas) {
-            this->cell_domains[p] = std::move(domain);
-        }
-
-        this->deltas.pop();
-        return true;
-    }
 
     constexpr std::size_t ITERATION_DELTA_MIN = 9 + 8 + 4;
 
@@ -47,19 +35,22 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
         delta_capacity += cage->cells.size() - 1;
     }
 
-    this->deltas.emplace(delta_capacity);
+    RefinedDomains result = {
+        .new_domains = DomainDeltas(delta_capacity),
+        .values_pruned = 0,
+        .is_legal = false
+    };
 
-    auto& iteration_deltas = this->deltas.top();
+    DomainDeltas& iteration_deltas = result.new_domains;
     std::bitset<BOARD_SIZE * BOARD_SIZE> is_refined;
 
-    iteration_deltas.append({pos, this->cell_domains[pos]});
-    this->cell_domains[pos] = {new_value};
-    is_refined[pos.toOffset()] = true;
-
-    const auto save_for_refine = [&](const BoardPosition& p,
-                                    const BoardCellDomain& old_domain) -> void {
-        iteration_deltas.append({p, old_domain});
+    const auto refine_domain_raw = [&](const BoardPosition& p,
+                                       const BoardCellDomain& new_domain,
+                                       const BoardOffset delta_size) -> bool {
+        iteration_deltas.append({p, new_domain});
         is_refined[p.toOffset()] = true;
+        result.values_pruned += delta_size;
+        return !new_domain.empty();
     };
 
     const auto refine_domain = [&](const BoardPosition& p) -> bool {
@@ -67,66 +58,65 @@ bool ForwardHeuristic::onUpdate(const BoardPosition& pos) {
         if (is_refined[p.toOffset()])
             return true;
 
-        auto& domain = this->cell_domains[p];
+        auto domain = this->cell_domains[p];
 
         if (!domain.has(new_value))
             return !domain.empty();
 
-        save_for_refine(p, domain);
         domain.remove(new_value);
-
-        return !domain.empty();
+        return refine_domain_raw(p, domain, 1);
     };
+
+    refine_domain_raw(pos, {new_value}, 0);
+
+    if (cage != nullptr) {
+        const auto cage_domain = this->getValidCageValues(*cage);
+        for (const auto& p : cage->cells) {
+            // Note that cage_domain only apply to empty cells!
+            if (p == pos || this->board.getValues()[p] != CELL_EMPTY) {
+                continue;
+            }
+
+            const auto& old_domain = this->cell_domains[p];
+            auto domain = old_domain;
+
+            if (domain.has(new_value)) {
+                domain.remove(new_value);
+            }
+
+            domain = domain & cage_domain;
+
+            BoardOffset delta_size =
+                static_cast<BoardOffset>(old_domain.size() - domain.size());
+            if (!refine_domain_raw(p, domain, delta_size)) {
+                return result;
+            }
+        }
+    }
 
     const auto row = this->board.getRow(pos.row);
     for (const auto& p : row) {
         if (!refine_domain(p)) {
-            return false;
+            return result;
         }
     }
 
     const auto col = this->board.getCol(pos.col);
     for (const auto& p : col) {
         if (!refine_domain(p)) {
-            return false;
+            return result;
         }
     }
 
     const auto box = this->board.getBox(this->board.getCellBox(pos));
     for (const auto& p : box) {
         if (!refine_domain(p)) {
-            return false;
+            return result;
         }
     }
 
-    if (cage != nullptr) {
-        const auto cage_domain = this->getValidCageValues(*cage);
-        for (const auto& p : cage->cells) {
-            // if (!refine_domain(p)) {
-            //     return false;
-            // }
-
-            // Note that cage_domain only apply to empty cells!
-            if (p == pos || this->board.getValues()[p] != CELL_EMPTY) {
-                continue;
-            }
-
-            auto& domain = this->cell_domains[p];
-
-            if (!is_refined[p.toOffset()]) {
-                save_for_refine(p, domain);
-                domain.remove(new_value);
-            }
-
-            domain = domain & cage_domain;
-
-            if (domain.empty()) {
-                return false;
-            }
-        }
-    }
-
-    return true;
+    result.is_legal = true;
+    return result;
 }
 
 BoardCellDomain ForwardHeuristic::getValidCageValues(
@@ -171,4 +161,131 @@ BoardCellDomain ForwardHeuristic::getValidCageValues(
     }
 
     return valid_values;
+}
+
+BoardPosition ForwardHeuristic::findMrvCell() const {
+    const auto& cell_values = this->board.getValues();
+
+    constexpr BoardCell DOMAIN_SIZE_INF = BoardCell(~0);
+    static_assert(DOMAIN_SIZE_INF > CELL_MAX - CELL_MIN + 1);
+
+    BoardPosition mrv_pos, p;
+    BoardCell min_domain_size = DOMAIN_SIZE_INF;
+    for (p.row = 0; p.row < BOARD_SIZE; p.row++) {
+        for (p.col = 0; p.col < BOARD_SIZE; p.col++) {
+            if (cell_values[p] != CELL_EMPTY) {
+                continue;
+            }
+            const auto domain_size = this->cell_domains[p].size();
+            if (domain_size < min_domain_size) {
+                min_domain_size = domain_size;
+                mrv_pos = p;
+            }
+        }
+    }
+
+    assert(min_domain_size > 0);
+    if (min_domain_size == DOMAIN_SIZE_INF) {
+        // No empty cells left...
+        return {BOARD_SIZE, BOARD_SIZE};
+    }
+
+    return mrv_pos;
+}
+
+bool ForwardHeuristic::solve() {
+    if (!this->mrv) {
+        return this->expand({0, 0});
+    }
+
+    BoardPosition next_pos = this->findMrvCell();
+
+    if (next_pos.row >= BOARD_SIZE) {
+        // Board is already full
+        return true;
+    }
+
+    return this->expand(next_pos);
+}
+
+bool ForwardHeuristic::expand(const BoardPosition& pos) {
+    BoardPosition next_pos;
+
+    if (this->mrv) {
+        next_pos = this->findMrvCell();
+
+        if (next_pos.row >= BOARD_SIZE) {
+            // Board is full, we're done
+            return true;
+        }
+    } else {
+        if (pos.row == BOARD_SIZE) {
+            // We've filled all rows, we're done
+            return true;
+        }
+
+        next_pos = this->incrementPos(pos);
+    }
+
+    this->step_count++;
+
+    auto& cell_value = this->board.getValues()[pos];
+
+    // Skip cells that are already filled
+    if (cell_value != CELL_EMPTY) {
+        return this->expand(next_pos);
+    }
+
+    using ChildRefinement = std::pair<BoardCell, RefinedDomains>;
+    utils::ArrayVector<ChildRefinement> child_refinements(BOARD_SIZE);
+
+    // Try placing numbers 1-9
+    for (BoardCell num = CELL_MIN; num <= CELL_MAX; num++) {
+        cell_value = num;
+
+        if (!this->cell_domains[pos].has(num) || this->board.isInvalid(pos)) {
+            cell_value = CELL_EMPTY;
+            continue;
+        }
+
+        auto refinement = this->forwardCheck(pos, false);
+        if (!refinement.is_legal) {
+            continue;
+        }
+
+        ChildRefinement&& child_refinement =
+            std::make_pair(std::move(num), std::move(refinement));
+        child_refinements.append(std::move(child_refinement));
+    }
+
+    cell_value = CELL_EMPTY;
+
+    const auto refinement_span = child_refinements.data();
+
+    if (this->lcv) {
+        std::sort(
+            refinement_span.begin(),
+            refinement_span.end(),
+            [](const ChildRefinement& a, const ChildRefinement& b) -> bool {
+                return a.second.values_pruned < b.second.values_pruned;
+            }
+        );
+    }
+
+    for (auto& [num, refinement] : refinement_span) {
+        cell_value = num;
+        DomainDeltas unrefined =
+            this->applyDeltasWithBackup(std::move(refinement.new_domains));
+
+        // Recursively try to fill the rest if legal
+        if (this->expand(next_pos)) {
+            return true;
+        }
+
+        // Backtrack if this placement doesn't lead to a solution
+        cell_value = CELL_EMPTY;
+        this->applyDeltas(std::move(unrefined));
+    }
+
+    return false;
 }

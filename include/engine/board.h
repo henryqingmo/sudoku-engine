@@ -102,6 +102,11 @@ SUDOKU_NAMESPACE {
         }
 
         [[nodiscard]]
+        BoardCell size() const {
+            return BoardCell(this->exists.count());
+        }
+
+        [[nodiscard]]
         bool operator==(const BoardCellDomain& other) const {
             return this->exists == other.exists;
         }

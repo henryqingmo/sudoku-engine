@@ -4,28 +4,28 @@
 
 SUDOKU_NAMESPACE {
     class BacktrackHeuristic : public Heuristic {
-    private:
+    protected:
         std::size_t step_count = 0;
 
     public:
         BacktrackHeuristic(Board& board) : Heuristic(board) {}
 
-        bool solve() final;
+        bool solve() override;
 
         std::size_t getStepCount() const {
             return this->step_count;
         }
 
     protected:
-        virtual BoardCellDomain getInvalidChoices(const BoardPosition&) const {
-            return BoardCellDomain();
+        static constexpr BoardPosition incrementPos(const BoardPosition& pos) {
+            auto next = BoardPosition(pos.row, pos.col + 1);
+            if (next.col == BOARD_SIZE) {
+                next.row++;
+                next.col = 0;
+            }
+            return next;
         }
 
-        virtual bool onUpdate(const BoardPosition&) {
-            return true;
-        }
-
-    private:
-        bool solve(BoardPosition pos);
+        virtual bool expand(const BoardPosition& pos);
     };
 }

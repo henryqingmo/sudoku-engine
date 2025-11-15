@@ -3,16 +3,10 @@
 using sudoku_engine::BacktrackHeuristic;
 
 bool BacktrackHeuristic::solve() {
-    return this->solve({0, 0});
+    return this->expand({0, 0});
 }
 
-bool BacktrackHeuristic::solve(BoardPosition pos) {
-    // Move to next row if we've reached the end of current row
-    if (pos.col == BOARD_SIZE) {
-        pos.row++;
-        pos.col = 0;
-    }
-
+bool BacktrackHeuristic::expand(const BoardPosition& pos) {
     // If we've filled all rows, we're done
     if (pos.row == BOARD_SIZE) {
         return true;
@@ -20,38 +14,27 @@ bool BacktrackHeuristic::solve(BoardPosition pos) {
 
     this->step_count++;
 
-    auto& cell_values = this->board.getValues();
+    auto& cell_value = this->board.getValues()[pos];
 
     // Skip cells that are already filled
-    if (cell_values[pos] != CELL_EMPTY) {
-        return this->solve(BoardPosition(pos.row, pos.col + 1));
-    }
-
-    const auto invalid_choices = this->getInvalidChoices(pos);
-    if (invalid_choices.full()) {
-        return false;
+    if (cell_value != CELL_EMPTY) {
+        return this->expand(this->incrementPos(pos));
     }
 
     // Try placing numbers 1-9
     for (BoardCell num = CELL_MIN; num <= CELL_MAX; num++) {
-        cell_values[pos] = num;
+        cell_value = num;
 
-        if (invalid_choices.has(num) || this->board.isInvalid(pos)) {
-            cell_values[pos] = CELL_EMPTY;
+        if (this->board.isInvalid(pos)) {
+            cell_value = CELL_EMPTY;
             continue;
         }
-
-        if (this->onUpdate(pos)) {
-            // Recursively try to fill the rest if legal
-            if (this->solve(BoardPosition(pos.row, pos.col + 1))) {
-                return true;
-            }
+        
+        if (this->expand(this->incrementPos(pos))) {
+            return true;
         }
-
-        // Backtrack if this placement doesn't lead to a solution
-        cell_values[pos] = CELL_EMPTY;
-        this->onUpdate(pos);
     }
 
+    cell_value = CELL_EMPTY;
     return false;
 }

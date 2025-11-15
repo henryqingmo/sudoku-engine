@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
     std::cout << "===========================" << std::endl;
 
-    const std::string_view arg = (argc > 1) ? argv[1] : "forward";
+    const std::string_view arg = (argc > 1) ? argv[1] : "default";
 
     if (arg == "" || arg == "--help") {
         const std::string_view exe_path = argv[0];
@@ -77,7 +77,9 @@ int main(int argc, char* argv[]) {
             exe_path_last_sep == exe_path.npos ?
                 exe_path :
                 exe_path.substr(exe_path_last_sep + 1);
-        std::cout << "Usage: " << exe_name << " [heuristic]" << std::endl;
+        std::cout << "Usage: " << exe_name
+                  << " [forward [mrv | lcv | mrv lcv] | backtrack]"
+                  << std::endl;
         return 1;
     }
 
@@ -85,8 +87,14 @@ int main(int argc, char* argv[]) {
     Board board = makeTestBoard();
 
     std::unique_ptr<BacktrackHeuristic> heuristic = nullptr;
-    if (arg == "forward") {
-        heuristic = std::make_unique<ForwardHeuristic>(board);
+    if (arg == "default") {
+        heuristic = std::make_unique<ForwardHeuristic>(board, true, true);
+    } else if (arg == "forward") {
+        using namespace std::string_view_literals;
+        const bool mrv = argc > 2 && argv[2] == "mrv"sv;
+        const bool lcv = (argc > 2 && argv[2] == "lcv"sv) ||
+                         (mrv && argc > 3 && argv[3] == "lcv"sv);
+        heuristic = std::make_unique<ForwardHeuristic>(board, mrv, lcv);
     } else if (arg == "backtrack") {
         heuristic = std::make_unique<BacktrackHeuristic>(board);
     } else {
@@ -117,7 +125,8 @@ int main(int argc, char* argv[]) {
         (solving_end - solving_start) / static_cast<double>(CLOCKS_PER_SEC);
 
     std::cout << std::endl;
-    std::cout << "CPU Time Taken: " << cpu_time_taken << " seconds" << std::endl;
+    std::cout << "CPU Time Taken: " << cpu_time_taken << " seconds"
+              << std::endl;
     std::cout << "Steps Taken:    " << heuristic->getStepCount() << std::endl;
 
     return 0;
