@@ -139,6 +139,8 @@ SUDOKU_NAMESPACE {
         std::vector<Data> cells;
         std::size_t size;
 
+        BoardState(const BoardState&) = default;
+
     public:
         BoardState(std::size_t size, const Data& fill)
             : cells(size * size, fill), size(size) {}
@@ -148,6 +150,13 @@ SUDOKU_NAMESPACE {
             if (this->cells.size() != size * size) {
                 throw std::runtime_error("Raw data vector size mismatch");
             }
+        }
+
+        BoardState(BoardState&&) = default;
+        BoardState& operator=(BoardState&&) = default;
+
+        BoardState clone() const {
+            return *this;
         }
 
         bool contains(const Data& cell_data) const {

@@ -20,12 +20,11 @@ ForwardHeuristic::ForwardHeuristic(Board& board, bool mrv, bool lcv)
     }
 }
 
-ForwardHeuristic::RefinedDomains ForwardHeuristic::forwardCheck(
+bool ForwardHeuristic::forwardCheck(
+    RefinedDomains& result,
     const BoardPosition& pos,
     const bool recursive
 ) const {
-    const BoardCell new_value = this->board.getValues()[pos];
-
     constexpr std::size_t ITERATION_DELTA_MIN = 9 + 8 + 4;
 
     const auto cage = this->board.getCellCage(pos);
@@ -35,22 +34,27 @@ ForwardHeuristic::RefinedDomains ForwardHeuristic::forwardCheck(
         delta_capacity += cage->cells.size() - 1;
     }
 
-    RefinedDomains result = {
-        .new_domains = DomainDeltas(delta_capacity),
-        .values_pruned = 0,
-        .is_legal = false
-    };
-
     DomainDeltas& iteration_deltas = result.new_domains;
-    std::bitset<BOARD_SIZE * BOARD_SIZE> is_refined;
 
     const auto refine_domain_raw = [&](const BoardPosition& p,
                                        const BoardCellDomain& new_domain,
                                        const BoardOffset delta_size) -> bool {
-        iteration_deltas.append({p, new_domain});
-        is_refined[p.toOffset()] = true;
+        iteration_deltas[p] = new_domain;
         result.values_pruned += delta_size;
-        return !new_domain.empty();
+
+        if (new_domain.empty()) {
+            return false;
+        }
+
+        if (!recursive || p == pos) {
+            return true;
+        }
+
+        if (!this->forwardCheck(result, p, recursive)) {
+            return false;
+        }
+
+        return true;
     };
 
     const auto refine_domain = [&](const BoardPosition& p) -> bool {
@@ -89,7 +93,7 @@ ForwardHeuristic::RefinedDomains ForwardHeuristic::forwardCheck(
             BoardOffset delta_size =
                 static_cast<BoardOffset>(old_domain.size() - domain.size());
             if (!refine_domain_raw(p, domain, delta_size)) {
-                return result;
+                return false;
             }
         }
     }
@@ -97,26 +101,25 @@ ForwardHeuristic::RefinedDomains ForwardHeuristic::forwardCheck(
     const auto row = this->board.getRow(pos.row);
     for (const auto& p : row) {
         if (!refine_domain(p)) {
-            return result;
+            return false;
         }
     }
 
     const auto col = this->board.getCol(pos.col);
     for (const auto& p : col) {
         if (!refine_domain(p)) {
-            return result;
+            return false;
         }
     }
 
     const auto box = this->board.getBox(this->board.getCellBox(pos));
     for (const auto& p : box) {
         if (!refine_domain(p)) {
-            return result;
+            return false;
         }
     }
 
-    result.is_legal = true;
-    return result;
+    return true;
 }
 
 BoardCellDomain ForwardHeuristic::getValidCageValues(

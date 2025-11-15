@@ -1,5 +1,6 @@
 #pragma once
 
+#include <list>
 #include <memory>
 #include <stack>
 #include <tuple>
@@ -13,18 +14,14 @@ SUDOKU_NAMESPACE {
     class ForwardHeuristic final : public BacktrackHeuristic {
     private:
         using DomainDelta = std::pair<BoardPosition, BoardCellDomain>;
-        using DomainDeltas = utils::ArrayVector<DomainDelta>;
+        using DomainDeltas = BoardState<BoardCellDomain>;
+
+        // using DomainDeltas = utils::ArrayVector<DomainDelta>;
 
         struct RefinedDomains {
             DomainDeltas new_domains;
             BoardOffset values_pruned;
-            bool is_legal;
         };
-
-        // using DomainDeltas = std::unordered_map<
-        //     BoardPosition,
-        //     BoardCellDomain,
-        //     BoardPosition::Hasher>;
 
         BoardState<BoardCellDomain> cell_domains;
         bool mrv, lcv;
@@ -39,24 +36,22 @@ SUDOKU_NAMESPACE {
         bool expand(const BoardPosition& pos) override;
 
     private:
-        RefinedDomains forwardCheck(const BoardPosition& pos, bool recursive) const;
+        bool forwardCheck(
+            RefinedDomains& result,
+            const BoardPosition& pos,
+            bool recursive
+        ) const;
 
         BoardCellDomain getValidCageValues(const BoardCage& cage) const;
         BoardPosition findMrvCell() const;
 
         void applyDeltas(DomainDeltas&& deltas) {
-            for (auto& [p, domain] : deltas.data()) {
-                this->cell_domains[p] = std::move(domain);
-            }
+            this->cell_domains = std::move(deltas);
         }
 
         DomainDeltas applyDeltasWithBackup(DomainDeltas&& deltas) {
-            DomainDeltas originals(deltas.size());
-            for (auto& [p, new_domain] : deltas.data()) {
-                auto& domain = this->cell_domains[p];
-                originals.append(std::make_pair(p, std::move(domain)));
-                domain = std::move(new_domain);
-            }
+            DomainDeltas originals = this->cell_domains.clone();
+            this->cell_domains = std::move(deltas);
             return originals;
         }
     };

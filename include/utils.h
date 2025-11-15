@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <list>
 #include <memory>
 #include <span>
 #include <stdexcept>
@@ -42,6 +43,22 @@ SUDOKU_NAMESPACE::utils {
         ArrayVector& operator=(const ArrayVector&) = delete;
         ArrayVector& operator=(ArrayVector&&) noexcept = default;
 
+        T* begin() {
+            return this->buffer();
+        }
+
+        T* end() {
+            return &this->buffer()[this->size()];
+        }
+
+        const T* begin() const {
+            return this->buffer();
+        }
+
+        const T* end() const {
+            return &this->buffer()[this->size()];
+        }
+
         std::span<T> data() {
             return std::span<T>(this->buffer(), this->m_size);
         }
@@ -56,6 +73,13 @@ SUDOKU_NAMESPACE::utils {
 
         std::size_t capacity() const {
             return this->m_capacity;
+        }
+
+        template <typename... Args>
+        void emplace(Args&&... args) {
+            this->appendCheck();
+            ::new (&this->buffer()[this->m_size++])
+                T(std::forward<Args>(args)...);
         }
 
         void append(const T& element) {
@@ -93,6 +117,52 @@ SUDOKU_NAMESPACE::utils {
         [[nodiscard]]
         T* buffer() {
             return std::launder(reinterpret_cast<T*>(this->m_buffer.get()));
+        }
+    };
+
+    // A simple adapter for std::list...
+    template <class Container, class Helper>
+    class VectorAdapter {
+    private:
+        using T = Container::value_type;
+
+        Container list;
+
+    public:
+        explicit VectorAdapter(std::size_t capacity) {
+            Helper{}.reserve(list, capacity);
+        }
+
+        auto begin() {
+            return this->list.begin();
+        }
+
+        auto end() {
+            return this->list.end();
+        }
+
+        auto rbegin() const {
+            return this->list.rbegin();
+        }
+
+        auto rend() const {
+            return this->list.rend();
+        }
+
+        std::size_t size() const {
+            return this->list.size();
+        }
+
+        void append(const T& element) {
+            this->list.push_back(element);
+        }
+
+        void append(T&& element) {
+            this->list.push_back(std::move(element));
+        }
+
+        void append(VectorAdapter&& tail) {
+            Helper{}.append(this->list, std::move(tail.list));
         }
     };
 }
