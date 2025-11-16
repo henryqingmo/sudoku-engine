@@ -5,9 +5,7 @@
 
 using sudoku_engine::Solver;
 
-Solver::Solver() {
-    std::cout << "Killer Sudoku solver initialized" << std::endl;
-}
+Solver::Solver() = default;
 
 Solver::~Solver() = default;
 

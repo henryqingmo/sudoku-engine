@@ -1,133 +1,263 @@
 #include <ctime>
+#include <fstream>
+#include <functional>
 #include <iostream>
+#include <string>
 #include <string_view>
 
 #include "engine/solver.h"
 #include "heuristic/backtrack.h"
 #include "heuristic/forward.h"
+#include "serialization.h"
 
-static inline sudoku_engine::Board makeTestBoard() {
-    using sudoku_engine::Board;
-    using sudoku_engine::BoardCage;
+struct Options {
+    using HeuristicFactory = std::function<std::unique_ptr<
+        sudoku_engine::BacktrackHeuristic>(sudoku_engine::Board& board)>;
 
-    // Killer sudoku puzzle configuration
-    // Define cages with their target sums and cell coordinates (row, col)
-    static const BoardCage cages[] = {
-        {6, {{5, 1}}},
-        {7, {{8, 4}}},
-        {13, {{0, 0}, {1, 0}}},
-        {14, {{2, 0}, {2, 1}}},
-        {3, {{0, 1}, {1, 1}}},
-        {4, {{3, 0}, {3, 1}}},
-        {14, {{4, 0}, {4, 1}}},
-        {15, {{5, 0}, {6, 0}}},
-        {5, {{7, 0}, {8, 0}}},
-        {8, {{3, 2}, {3, 3}}},
-        {15, {{4, 2}, {4, 3}}},
-        {10, {{6, 2}, {6, 3}}},
-        {4, {{1, 3}, {2, 3}}},
-        {16, {{2, 4}, {2, 5}}},
-        {13, {{3, 4}, {3, 5}}},
-        {7, {{6, 4}, {7, 4}}},
-        {7, {{6, 5}, {7, 5}}},
-        {9, {{0, 8}, {1, 8}}},
-        {10, {{6, 7}, {7, 7}}},
-        {6, {{6, 8}, {7, 8}}},
-        {17, {{8, 7}, {8, 8}}},
-        {15, {{0, 2}, {1, 2}, {2, 2}}},
-        {18, {{8, 2}, {7, 3}, {8, 3}}},
-        {15, {{4, 5}, {5, 5}, {4, 6}}},
-        {12, {{2, 6}, {2, 7}, {1, 7}}},
-        {14, {{3, 6}, {3, 7}, {4, 7}}},
-        {16, {{5, 6}, {5, 7}, {5, 8}}},
-        {18, {{2, 8}, {3, 8}, {4, 8}}},
-        {25, {{6, 1}, {7, 1}, {8, 1}, {7, 2}}},
-        {10, {{5, 2}, {5, 3}, {5, 4}, {4, 4}}},
-        {17, {{0, 3}, {0, 4}, {1, 4}, {1, 5}}},
-        {15, {{8, 5}, {8, 6}, {7, 6}, {6, 6}}},
-        {27, {{0, 5}, {0, 6}, {0, 7}, {1, 6}}}
-    };
+    std::unique_ptr<std::ifstream> puzzle_file;
+    sudoku_engine::serialization::PuzzleLoader puzzle_loader;
+    HeuristicFactory heuristic;
+    std::string heuristic_name;
+    long puzzle_index;
+};
 
-    // Set up the puzzle
-    Board board;
-    board.setCages(cages);
-
-    // Optional: start with some given numbers (empty board for this example)
-    // ...
-
-    return board;
+static void printHelp(std::string_view exe_path) {
+    const std::size_t exe_path_last_sep = exe_path.find_last_of("/\\");
+    const std::string_view exe_name =
+        exe_path_last_sep == exe_path.npos ?
+            exe_path :
+            exe_path.substr(exe_path_last_sep + 1);
+    std::cout << "Usage: " << exe_name
+              << " [puzzle_bundle_file.ks[:puzzle_index]]"
+              << " [forward [mrv | lcv | mrv lcv] | backtrack]" << std::endl;
 }
 
-int main(int argc, char* argv[]) {
+static std::unique_ptr<Options> parseOptions(
+    const int argc,
+    const char* const argv[]
+) {
     using sudoku_engine::BacktrackHeuristic;
     using sudoku_engine::Board;
     using sudoku_engine::ForwardHeuristic;
     using sudoku_engine::Heuristic;
+
+    const std::string_view args[] = {
+        (argc > 1) ? argv[1] : "",
+        (argc > 2) ? argv[2] : "forward",
+        (argc > 3) ? argv[3] : "",
+        (argc > 4) ? argv[4] : "",
+    };
+
+    if (args[0] == "" || args[0] == "--help") {
+        printHelp(argv[0]);
+        return nullptr;
+    }
+
+    const std::string_view puzzle_str = args[0];
+    const std::string_view strategy = args[1];
+
+    const std::size_t puzzle_index_pos = puzzle_str.find_last_of(':');
+    const std::string filename =
+        std::string(puzzle_str.substr(0, puzzle_index_pos));
+    const std::string_view puzzle_index_str =
+        puzzle_index_pos != std::string_view::npos ?
+            puzzle_str.substr(puzzle_index_pos + 1) :
+            std::string_view();
+
+    auto puzzle_file =
+        std::make_unique<std::ifstream>(filename, std::ios::binary);
+    if (!puzzle_file->is_open()) {
+        std::cout << "Failed to open file \"" << filename << "\"!";
+        return nullptr;
+    }
+
+    auto options = std::unique_ptr<Options>(new Options{
+        .puzzle_file = nullptr,
+        .puzzle_loader =
+            sudoku_engine::serialization::PuzzleLoader(*puzzle_file),
+        .heuristic = nullptr,
+        .heuristic_name = std::string(),
+        .puzzle_index = puzzle_index_str.empty() ?
+                            -1 :
+                            std::stol(std::string(puzzle_index_str))
+    });
+
+    options->puzzle_file = std::move(puzzle_file);
+    options->heuristic_name = strategy;
+
+    using HeuristicPtr = std::unique_ptr<BacktrackHeuristic>;
+    if (strategy == "forward") {
+        const bool mrv = args[2] == "mrv";
+        const bool lcv = args[2] == "lcv" || (mrv && args[3] == "lcv");
+
+        options->heuristic = [mrv, lcv](Board& board) -> HeuristicPtr {
+            return std::make_unique<ForwardHeuristic>(board, mrv, lcv);
+        };
+
+        if (mrv)
+            options->heuristic_name += "-mrv";
+        if (lcv)
+            options->heuristic_name += "-lcv";
+    } else if (strategy == "backtrack") {
+        options->heuristic = [](Board& board) -> HeuristicPtr {
+            return std::make_unique<BacktrackHeuristic>(board);
+        };
+    } else {
+        std::cout << "Invalid heuristic: " << strategy << std::endl;
+        return nullptr;
+    }
+
+    return options;
+}
+
+static void solvePuzzles(Options& options) {
+    using sudoku_engine::Board;
+    using sudoku_engine::Solver;
+    using sudoku_engine::serialization::PuzzleLoader;
+
+    Solver solver;
+
+    PuzzleLoader& puzzle_loader = options.puzzle_loader;
+
+    const bool single_puzzle = options.puzzle_index >= 0;
+
+    std::ofstream data_output;
+
+    if (!single_puzzle) {
+        const std::time_t result = std::time(nullptr);
+        const std::string filename = "experiment-data-" +
+                                     options.heuristic_name + '-' +
+                                     std::to_string(result) + ".csv";
+
+        data_output.open(filename);
+        if (!data_output.is_open()) {
+            std::cout << "Could not open \"" << filename << "\" for writing!"
+                      << std::endl;
+            return;
+        } else {
+            std::cout << "Writing to \"" << filename << "\"..." << std::endl;
+        }
+
+        data_output << "Puzzle,Time,Steps" << std::endl;
+    }
+
+    const unsigned long index_start = single_puzzle ? options.puzzle_index : 0;
+    const unsigned long index_end =
+        single_puzzle ? options.puzzle_index + 1 : puzzle_loader.puzzle_count();
+    const unsigned long index_range = index_end - index_start;
+
+    long double total_cpu_time = 0;
+    size_t total_steps_taken = 0;
+    unsigned long puzzle_count = 0;
+
+    for (unsigned long index = index_start; index < index_end; index++) {
+        const auto puzzle = puzzle_loader.load_puzzle(index);
+        Board board;
+
+        board.setCages(puzzle->cages.data());
+
+        if (single_puzzle) {
+            std::cout << std::endl << "Initial Board:" << std::endl;
+            board.print(std::cout);
+
+            std::cout << std::endl << "Solving..." << std::endl;
+        }
+
+        const auto heuristic = options.heuristic(board);
+
+        // Solve the puzzle
+        std::clock_t solving_start = std::clock();
+        const bool solution_found = solver.solve(*heuristic);
+        std::clock_t solving_end = std::clock();
+
+        if (solution_found) {
+            if (board.getValues() == puzzle->solution) {
+                if (single_puzzle) {
+                    std::cout << std::endl
+                              << "[DONE] Solution found!" << std::endl;
+                }
+            } else {
+                const bool valid = !board.isIncomplete() && !board.isInvalid();
+
+                if (!valid || single_puzzle) {
+                    std::cout << std::endl
+                              << "[WARN] Solution mismatch!" << std::endl;
+
+                    std::cout << "Received:" << std::endl;
+                    board.print(std::cout);
+
+                    std::cout << "Expected:" << std::endl;
+                    board.setValues(puzzle->solution);
+                    board.print(std::cout);
+                }
+
+                if (!valid) {
+                    std::cout << "[FAIL] Solution is also invalid!"
+                              << std::endl;
+                    break;
+                } else if (single_puzzle) {
+                    std::cout << "[INFO] Alternative solution found."
+                              << std::endl;
+                }
+            }
+        } else {
+            std::cout << std::endl
+                      << "[FAIL] No solution exists for puzzle #" << index
+                      << "!" << std::endl;
+            board.print(std::cout);
+            break;
+        }
+
+        if (single_puzzle) {
+            board.print(std::cout);
+        } else if (puzzle_count % 100 == 0) {
+            std::cout << "  > [" << puzzle_count << "/" << index_range << "]"
+                      << std::endl;
+        }
+
+        const auto cpu_time_taken =
+            (solving_end - solving_start) / static_cast<double>(CLOCKS_PER_SEC);
+        const auto step_count = heuristic->getStepCount();
+
+        if (!single_puzzle) {
+            data_output << index << ',' << cpu_time_taken << ',' << step_count
+                        << std::endl;
+        }
+
+        total_cpu_time += cpu_time_taken;
+        total_steps_taken += step_count;
+        puzzle_count++;
+    }
+
+    const auto avg_cpu_time = total_cpu_time / puzzle_count;
+    const auto avg_step_count =
+        total_steps_taken / static_cast<long double>(puzzle_count);
+
+    std::cout << std::endl;
+    std::cout << "Puzzles Solved: " << puzzle_count << std::endl;
+    std::cout << "Avg. CPU Time Taken: " << avg_cpu_time << " seconds"
+              << std::endl;
+    std::cout << "Avg. Steps Taken:    " << avg_step_count << std::endl;
+}
+
+int main(int argc, char* argv[]) {
     using sudoku_engine::Solver;
 
     std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
     std::cout << "===========================" << std::endl;
 
-    const std::string_view arg = (argc > 1) ? argv[1] : "default";
-
-    if (arg == "" || arg == "--help") {
-        const std::string_view exe_path = argv[0];
-        const std::size_t exe_path_last_sep = exe_path.find_last_of("/\\");
-        const std::string_view exe_name =
-            exe_path_last_sep == exe_path.npos ?
-                exe_path :
-                exe_path.substr(exe_path_last_sep + 1);
-        std::cout << "Usage: " << exe_name
-                  << " [forward [mrv | lcv | mrv lcv] | backtrack]"
-                  << std::endl;
+    std::unique_ptr<Options> options;
+    try {
+        options = parseOptions(argc, argv);
+        if (!options) {
+            return 1;
+        }
+    } catch (const std::exception& err) {
+        std::cout << "[ERROR] " << err.what() << std::endl;
         return 1;
     }
 
-    Solver solver;
-    Board board = makeTestBoard();
-
-    std::unique_ptr<BacktrackHeuristic> heuristic = nullptr;
-    if (arg == "default") {
-        heuristic = std::make_unique<ForwardHeuristic>(board, true, true);
-    } else if (arg == "forward") {
-        using namespace std::string_view_literals;
-        const bool mrv = argc > 2 && argv[2] == "mrv"sv;
-        const bool lcv = (argc > 2 && argv[2] == "lcv"sv) ||
-                         (mrv && argc > 3 && argv[3] == "lcv"sv);
-        heuristic = std::make_unique<ForwardHeuristic>(board, mrv, lcv);
-    } else if (arg == "backtrack") {
-        heuristic = std::make_unique<BacktrackHeuristic>(board);
-    } else {
-        std::cout << "Invalid heuristic: " << arg << std::endl;
-        return 1;
-    }
-
-    std::cout << std::endl << "Initial Board:" << std::endl;
-    board.print(std::cout);
-
-    std::cout << std::endl << "Solving..." << std::endl;
-
-    // Solve the puzzle
-    std::clock_t solving_start = std::clock();
-    const bool solution_found = solver.solve(*heuristic);
-    std::clock_t solving_end = std::clock();
-
-    if (solution_found) {
-        std::cout << std::endl << "[DONE] Solution found!" << std::endl;
-        board.print(std::cout);
-    } else {
-        std::cout << std::endl
-                  << "[FAIL] No solution exists for this puzzle." << std::endl;
-        board.print(std::cout);
-    }
-
-    const auto cpu_time_taken =
-        (solving_end - solving_start) / static_cast<double>(CLOCKS_PER_SEC);
-
-    std::cout << std::endl;
-    std::cout << "CPU Time Taken: " << cpu_time_taken << " seconds"
-              << std::endl;
-    std::cout << "Steps Taken:    " << heuristic->getStepCount() << std::endl;
+    solvePuzzles(*options);
 
     return 0;
 }

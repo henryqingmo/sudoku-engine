@@ -28,19 +28,40 @@ SUDOKU_NAMESPACE::utils {
         std::size_t m_size;
 
     public:
+        ArrayVector() : ArrayVector(0) {}
         explicit ArrayVector(std::size_t capacity)
             : m_capacity(capacity), m_size(0) {
-            void* const raw = ::operator new[](
-                capacity * sizeof(T), std::align_val_t(alignof(T))
-            );
-            this->m_buffer.reset(reinterpret_cast<std::byte*>(raw));
+            if (m_capacity > 0) {
+                void* const raw = ::operator new[](
+                    capacity * sizeof(T), std::align_val_t(alignof(T))
+                );
+                this->m_buffer.reset(reinterpret_cast<std::byte*>(raw));
+            }
         }
 
         ArrayVector(const ArrayVector&) = delete;
-        ArrayVector(ArrayVector&&) noexcept = default;
+        ArrayVector(ArrayVector&& other) noexcept
+            : m_buffer(std::move(other.m_buffer)), m_capacity(other.m_capacity),
+              m_size(other.m_size) {
+            other.m_capacity = 0;
+            other.m_size = 0;
+        }
 
         ArrayVector& operator=(const ArrayVector&) = delete;
-        ArrayVector& operator=(ArrayVector&&) noexcept = default;
+        ArrayVector& operator=(ArrayVector&& other) noexcept {
+            if (this != &other) {
+                this->clear();
+
+                this->m_buffer = std::move(other.m_buffer);
+                this->m_capacity = other.m_capacity;
+                this->m_size = other.m_size;
+
+                other.m_capacity = 0;
+                other.m_size = 0;
+            }
+
+            return *this;
+        }
 
         std::span<T> data() {
             return std::span<T>(this->buffer(), this->m_size);
@@ -68,30 +89,34 @@ SUDOKU_NAMESPACE::utils {
             ::new (&this->buffer()[this->m_size++]) T(std::move(element));
         }
 
-        ~ArrayVector() noexcept {
-            if (this->m_buffer) {
-                for (std::size_t i = 0; i < this->m_size; i++) {
-                    std::destroy_at(&this->buffer()[i]);
-                }
+        void clear() noexcept {
+            for (std::size_t i = 0; i < this->m_size; i++) {
+                std::destroy_at(&this->buffer()[i]);
             }
+
+            this->m_size = 0;
+        }
+
+        ~ArrayVector() noexcept {
+            this->clear();
         }
 
     private:
         void appendCheck() {
-            if (this->m_size >= this->capacity()) {
+            if (this->m_size >= this->m_capacity) {
                 throw std::length_error("Array vector is already full");
             }
         }
 
         [[nodiscard]]
-        const T* buffer() const {
+        const T* buffer() const noexcept {
             return std::launder(
                 reinterpret_cast<const T*>(this->m_buffer.get())
             );
         }
 
         [[nodiscard]]
-        T* buffer() {
+        T* buffer() noexcept {
             return std::launder(reinterpret_cast<T*>(this->m_buffer.get()));
         }
     };

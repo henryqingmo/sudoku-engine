@@ -144,7 +144,7 @@ SUDOKU_NAMESPACE {
             : cells(size * size, fill), size(size) {}
 
         BoardState(std::size_t size, std::vector<Data> data)
-            : size(size), cells(std::move(data)) {
+            : cells(std::move(data)), size(size) {
             if (this->cells.size() != size * size) {
                 throw std::runtime_error("Raw data vector size mismatch");
             }
@@ -174,6 +174,10 @@ SUDOKU_NAMESPACE {
 
         const Data& operator[](const BoardPosition& pos) const {
             return this->cells[pos.toOffset()];
+        }
+
+        bool operator==(const BoardState& other) const {
+            return this->cells == other.cells;
         }
     };
 
