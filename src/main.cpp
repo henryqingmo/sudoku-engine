@@ -29,6 +29,7 @@ static void printHelp(std::string_view exe_path) {
             exe_path.substr(exe_path_last_sep + 1);
     std::cout << "Usage: " << exe_name
               << " [puzzle_bundle_file.ks[:puzzle_index]]"
+              << " [step_limit]"
               << " [forward [mrv | lcv | mrv lcv] | backtrack]" << std::endl;
 }
 
@@ -43,9 +44,10 @@ static std::unique_ptr<Options> parseOptions(
 
     const std::string_view args[] = {
         (argc > 1) ? argv[1] : "",
-        (argc > 2) ? argv[2] : "forward",
+        (argc > 2) ? argv[2] : "",
         (argc > 3) ? argv[3] : "",
         (argc > 4) ? argv[4] : "",
+        (argc > 5) ? argv[5] : "",
     };
 
     if (args[0] == "" || args[0] == "--help") {
@@ -54,7 +56,8 @@ static std::unique_ptr<Options> parseOptions(
     }
 
     const std::string_view puzzle_str = args[0];
-    const std::string_view strategy = args[1];
+    const std::string_view step_limit_str = args[1];
+    const std::string_view strategy = args[2];
 
     const std::size_t puzzle_index_pos = puzzle_str.find_last_of(':');
     const std::string filename =
@@ -85,13 +88,24 @@ static std::unique_ptr<Options> parseOptions(
     options->puzzle_file = std::move(puzzle_file);
     options->heuristic_name = strategy;
 
+    if (step_limit_str.empty()) {
+        std::cout << "Step limit required" << std::endl;
+        return nullptr;
+    }
+
+    const std::size_t step_limit = std::stoull(std::string(step_limit_str));
+
     using HeuristicPtr = std::unique_ptr<BacktrackHeuristic>;
     if (strategy == "forward") {
-        const bool mrv = args[2] == "mrv";
-        const bool lcv = args[2] == "lcv" || (mrv && args[3] == "lcv");
+        constexpr std::size_t bp = std::size(args) - 2;
 
-        options->heuristic = [mrv, lcv](Board& board) -> HeuristicPtr {
-            return std::make_unique<ForwardHeuristic>(board, mrv, lcv);
+        const bool mrv = args[bp] == "mrv";
+        const bool lcv = args[bp] == "lcv" || (mrv && args[bp + 1] == "lcv");
+
+        options->heuristic = [=](Board& board) -> HeuristicPtr {
+            return std::make_unique<ForwardHeuristic>(
+                board, step_limit, mrv, lcv
+            );
         };
 
         if (mrv)
@@ -99,11 +113,11 @@ static std::unique_ptr<Options> parseOptions(
         if (lcv)
             options->heuristic_name += "-lcv";
     } else if (strategy == "backtrack") {
-        options->heuristic = [](Board& board) -> HeuristicPtr {
-            return std::make_unique<BacktrackHeuristic>(board);
+        options->heuristic = [step_limit](Board& board) -> HeuristicPtr {
+            return std::make_unique<BacktrackHeuristic>(board, step_limit);
         };
     } else {
-        std::cout << "Invalid heuristic: " << strategy << std::endl;
+        std::cout << "Invalid heuristic: \"" << strategy << '"' << std::endl;
         return nullptr;
     }
 
@@ -111,6 +125,7 @@ static std::unique_ptr<Options> parseOptions(
 }
 
 static void solvePuzzles(Options& options) {
+    using sudoku_engine::BacktrackHeuristic;
     using sudoku_engine::Board;
     using sudoku_engine::Solver;
     using sudoku_engine::serialization::PuzzleLoader;
@@ -165,9 +180,17 @@ static void solvePuzzles(Options& options) {
 
         const auto heuristic = options.heuristic(board);
 
+        bool solution_found = false;
+
         // Solve the puzzle
         std::clock_t solving_start = std::clock();
-        const bool solution_found = solver.solve(*heuristic);
+        try {
+            solution_found = solver.solve(*heuristic);
+        } catch (const BacktrackHeuristic::TooHardError& err) {
+            std::cout << "  - The solver rage-quit puzzle #" << index << "."
+                      << std::endl;
+            continue;
+        }
         std::clock_t solving_end = std::clock();
 
         if (solution_found) {
@@ -234,7 +257,8 @@ static void solvePuzzles(Options& options) {
         total_steps_taken / static_cast<long double>(puzzle_count);
 
     std::cout << std::endl;
-    std::cout << "Puzzles Solved: " << puzzle_count << std::endl;
+    std::cout << "Puzzles Solved:      " << puzzle_count << " / " << index_range
+              << std::endl;
     std::cout << "Avg. CPU Time Taken: " << avg_cpu_time << " seconds"
               << std::endl;
     std::cout << "Avg. Steps Taken:    " << avg_step_count << std::endl;

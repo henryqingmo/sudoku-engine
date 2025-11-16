@@ -13,6 +13,7 @@ bool BacktrackHeuristic::expand(const BoardPosition& pos) {
     }
 
     this->step_count++;
+    this->checkStepLimit();
 
     auto& cell_value = this->board.getValues()[pos];
 

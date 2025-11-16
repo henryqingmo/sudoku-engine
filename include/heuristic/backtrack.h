@@ -1,14 +1,23 @@
 #pragma once
 
+#include <stdexcept>
+
 #include "heuristic.h"
 
 SUDOKU_NAMESPACE {
     class BacktrackHeuristic : public Heuristic {
+    public:
+        class TooHardError : public std::runtime_error {
+            using runtime_error::runtime_error;
+        };
+
     protected:
         std::size_t step_count = 0;
+        std::size_t step_limit;
 
     public:
-        BacktrackHeuristic(Board& board) : Heuristic(board) {}
+        BacktrackHeuristic(Board& board, std::size_t step_limit)
+            : Heuristic(board), step_limit(step_limit) {}
 
         bool solve() override;
 
@@ -27,5 +36,11 @@ SUDOKU_NAMESPACE {
         }
 
         virtual bool expand(const BoardPosition& pos);
+
+        void checkStepLimit() {
+            if (this->step_count > this->step_limit) {
+                throw TooHardError("Rage quit");
+            }
+        }
     };
 }

@@ -30,7 +30,12 @@ SUDOKU_NAMESPACE {
         bool mrv, lcv;
 
     public:
-        ForwardHeuristic(Board& board, bool mrv, bool lcv);
+        ForwardHeuristic(
+            Board& board,
+            std::size_t step_limit,
+            bool mrv,
+            bool lcv
+        );
         ~ForwardHeuristic() = default;
 
         bool solve() override;

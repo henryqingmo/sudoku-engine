@@ -7,9 +7,14 @@ using sudoku_engine::BoardCellDomain;
 using sudoku_engine::BoardPosition;
 using sudoku_engine::ForwardHeuristic;
 
-ForwardHeuristic::ForwardHeuristic(Board& board, bool mrv, bool lcv)
-    : BacktrackHeuristic(board), cell_domains(BOARD_SIZE, ~BoardCellDomain()),
-      mrv(mrv), lcv(lcv) {
+ForwardHeuristic::ForwardHeuristic(
+    Board& board,
+    std::size_t step_limit,
+    bool mrv,
+    bool lcv
+)
+    : BacktrackHeuristic(board, step_limit),
+      cell_domains(BOARD_SIZE, ~BoardCellDomain()), mrv(mrv), lcv(lcv) {
     BoardPosition pos = {0, 0};
     for (pos.row = 0; pos.row < BOARD_SIZE; pos.row++) {
         for (pos.col = 0; pos.col < BOARD_SIZE; pos.col++) {
@@ -227,6 +232,7 @@ bool ForwardHeuristic::expand(const BoardPosition& pos) {
     }
 
     this->step_count++;
+    this->checkStepLimit();
 
     auto& cell_value = this->board.getValues()[pos];
 
