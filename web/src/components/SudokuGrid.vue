@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { SudokuEngine, type Cage } from "../lib/sudoku";
+import { SudokuEngine, type Cage, type CellState } from "../lib/sudoku";
 import SudokuCell from "./SudokuCell.vue";
 
 const props = defineProps<{
