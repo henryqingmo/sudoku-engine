@@ -46,17 +46,19 @@ function onCellClick(r: number, c: number) {
 </script>
 
 <template>
-  <div class="relative w-full max-w-2xl aspect-square border-4 border-gray-800">
-    <div class="grid grid-cols-9 grid-rows-9 gap-0 bg-gray-800 w-full h-full">
+  <div class="relative w-full aspect-square bg-slate-800 rounded-lg p-1 shadow-inner">
+    <!-- The Grid Container -->
+    <div class="grid grid-cols-9 grid-rows-9 gap-px bg-slate-300 w-full h-full border-2 border-slate-800 rounded overflow-hidden">
       <template v-for="(row, r) in board" :key="r">
         <template v-for="(cell, c) in row" :key="`${r}-${c}`">
           <div 
-            class="relative bg-white"
+            class="relative bg-white overflow-hidden"
             :class="{
-                'border-r-2 border-gray-800': (c + 1) % 3 === 0 && c !== 8,
-                'border-b-2 border-gray-800': (r + 1) % 3 === 0 && r !== 8,
-                'border-r border-gray-800': (c + 1) % 3 !== 0,
-                'border-b border-gray-800': (r + 1) % 3 !== 0
+                // Thicker borders for 3x3 blocks using margin tricks or specific borders
+                // Actually, using gap-px gives us 1px borders everywhere.
+                // We can add extra borders to specific cells to simulate the 3x3 grid.
+                'border-r-2 border-r-slate-800': (c + 1) % 3 === 0 && c !== 8,
+                'border-b-2 border-b-slate-800': (r + 1) % 3 === 0 && r !== 8,
             }"
           >
             <SudokuCell
@@ -68,14 +70,6 @@ function onCellClick(r: number, c: number) {
               :selected="selectedCell?.r === r && selectedCell?.c === c"
               @update:selected="onCellClick(r, c)"
             />
-            
-            <!-- Cage Borders Overlay (Simplified) -->
-            <!-- If we want true cage borders, we'd need more complex logic here or SVG overlay -->
-            <div v-if="cell.cageId" class="absolute inset-0 pointer-events-none border-dashed border-gray-400/50"
-                 :class="{
-                     'border-2': true
-                 }"
-            ></div>
           </div>
         </template>
       </template>

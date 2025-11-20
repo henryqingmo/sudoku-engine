@@ -15,28 +15,23 @@ const isSelected = defineModel<boolean>('selected');
 
 const cellClasses = computed(() => {
   return {
-    'relative flex items-center justify-center border border-gray-300 select-none cursor-pointer': true,
-    'bg-white': !props.cell.isFixed && !isSelected.value,
-    'bg-gray-100': props.cell.isFixed,
-    'bg-blue-100': isSelected.value,
-    'text-3xl font-bold text-gray-800': props.cell.value !== null,
+    'relative flex items-center justify-center select-none cursor-pointer transition-colors duration-150': true,
+    'bg-white hover:bg-slate-50': !props.cell.isFixed && !isSelected.value,
+    'bg-slate-100 text-slate-900': props.cell.isFixed,
+    'bg-indigo-100 text-indigo-900': isSelected.value,
+    'text-3xl font-medium': props.cell.value !== null,
+    'text-slate-700': props.cell.value !== null && !props.cell.isFixed && !isSelected.value,
   };
 });
 
 // Cage styling
-// We can use inline styles or dynamic classes for cage borders if we want to be fancy.
-// For now, let's assume the grid handles the heavy lifting of cage borders, 
-// or we just use a dashed outline if it's in a cage.
-// Actually, a common way is to color the background of cages slightly differently or use a dashed border.
-// Since we are using Tailwind, we can try to apply classes based on cage presence.
-
 const cageClasses = computed(() => {
     if (!props.cage) return {};
-    // This is a simplification. Ideally we want borders only on the edges of the cage.
-    // That requires knowing neighbors.
-    // For this minimal version, let's just show the cage ID or sum if it's top left.
     return {
-        'bg-yellow-50/50': true // Light highlight for caged cells
+        // Use a subtle dashed border for cages
+        'after:absolute after:inset-0.5 after:border-2 after:border-dashed after:border-indigo-200/70 after:rounded-sm after:pointer-events-none': true,
+        // And a very subtle background tint
+        'bg-indigo-50/30': !isSelected.value && !props.cell.isFixed
     }
 });
 
@@ -49,7 +44,7 @@ const cageClasses = computed(() => {
     class="aspect-square w-full h-full"
   >
     <!-- Cage Sum Indicator -->
-    <div v-if="isCageTopLeft && cage" class="absolute top-0 left-1 text-xs font-bold text-gray-700 z-10">
+    <div v-if="isCageTopLeft && cage" class="absolute top-0.5 left-1 text-[15px] font-bold text-indigo-500/80 z-10 bg-white/80 px-0.5 rounded">
       {{ cage.sum }}
     </div>
 
