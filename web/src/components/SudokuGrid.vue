@@ -37,7 +37,7 @@ onUnmounted(() => props.engine.onUpdate.delete(updateBoard));
 </script>
 
 <template>
-  <div class="relative w-full aspect-square bg-slate-800 rounded-lg p-1 shadow-inner">
+  <div class="relative w-full aspect-square bg-slate-300 rounded-lg p-1 shadow-inner">
     <!-- The Grid Container -->
     <div
       class="grid grid-cols-9 grid-rows-9 gap-px bg-slate-300 w-full h-full border-2 border-slate-800 rounded overflow-hidden"

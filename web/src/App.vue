@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import ControlPanel from "./components/ControlPanel.vue";
 import SudokuGrid from "./components/SudokuGrid.vue";
 import { SudokuEngine } from "./lib/sudoku";
@@ -7,26 +7,60 @@ import { SudokuEngine } from "./lib/sudoku";
 const engine = new SudokuEngine();
 const isSolving = ref(false);
 
-const heuristics = reactive({
+const heuristics = ref({
   forward: false,
   mrv: false,
   lcv: false,
 });
 
+watch(heuristics, (heuristics) => {
+  engine.reset(heuristics.forward, heuristics.mrv, heuristics.lcv);
+});
+
 async function solve() {
+  reset();
   isSolving.value = true;
   await engine.solve();
   isSolving.value = false;
 }
 
+async function stepRaw() {
+  await engine.step();
+  if (heuristics.value.forward) {
+    // idek why :')
+    await engine.step();
+  }
+};
+
 async function step() {
   isSolving.value = true;
-  await engine.step();
+  await stepRaw();
   isSolving.value = false;
 }
 
+let autoStepTimeout: number;
+
+async function auto() {
+  isSolving.value = true;
+  let promise = Promise.resolve();
+  autoStepTimeout = setInterval(() => {
+    promise.then(() => promise = stepRaw());
+  }, 100);
+}
+
+function pause() {
+  if (!!autoStepTimeout) {
+    clearInterval(autoStepTimeout);
+    isSolving.value = false;
+  }
+}
+
 function reset() {
-  engine.reset(heuristics.forward, heuristics.mrv, heuristics.lcv);
+  engine.reset(
+    heuristics.value.forward,
+    heuristics.value.mrv,
+    heuristics.value.lcv,
+  );
 }
 
 const engineReady = ref(false);
@@ -65,9 +99,12 @@ onMounted(() => {
           <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 class="text-lg font-semibold mb-4 text-slate-800">Controls</h2>
             <ControlPanel
+              v-model="heuristics"
               :solving="isSolving"
               @solve="solve"
               @step="step"
+              @auto="auto"
+              @pause="pause"
               @reset="reset"
             />
           </div>

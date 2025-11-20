@@ -107,6 +107,11 @@ SUDOKU_NAMESPACE {
         }
 
         [[nodiscard]]
+        std::uint16_t encode() const noexcept {
+            return static_cast<std::uint16_t>(this->exists.to_ulong());
+        }
+
+        [[nodiscard]]
         bool operator==(const BoardCellDomain& other) const {
             return this->exists == other.exists;
         }

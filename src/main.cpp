@@ -186,7 +186,7 @@ static void solvePuzzles(Options& options) {
         std::clock_t solving_start = std::clock();
         try {
             solution_found = solver.solve(*heuristic);
-        } catch (const BacktrackHeuristic::TooHardError& err) {
+        } catch (const BacktrackHeuristic::TooHardError&) {
             std::cout << "  - The solver rage-quit puzzle #" << index << "."
                       << std::endl;
             continue;
@@ -263,6 +263,18 @@ static void solvePuzzles(Options& options) {
               << std::endl;
     std::cout << "Avg. Steps Taken:    " << avg_step_count << std::endl;
 }
+
+extern "C" {
+void initGame(bool forward, bool mrv, bool lcv);
+int stepSolver();
+}
+
+// void testWasm() {
+//     initGame(false, false, false);
+//     initGame(false, false, false);
+//     stepSolver();
+//     initGame(false, false, false);
+// }
 
 int main(int argc, char* argv[]) {
     using sudoku_engine::Solver;

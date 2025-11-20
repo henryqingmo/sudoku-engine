@@ -85,10 +85,17 @@ export class SudokuEngine {
       const rowCells: CellState[] = [];
       for (let col = 0; col < 9; col++) {
         const value = this.module!._getBoardValue(row, col) as number;
+        const domainInt = this.module!._getBoardDomain(row, col) as number;
+        const domain = new Set<number>();
+        for (let i = 0; i < 9; i++) {
+          if ((domainInt >> i) & 0x1) {
+            domain.add(i + 1);
+          }
+        }
         const cage = EXAMPLE_CAGES.find(c =>
           c.cells.some(p => p.row == row && p.col == col),
         );
-        rowCells.push({ cage, value: value || null, domain: new Set() });
+        rowCells.push({ cage, value: value || null, domain });
       }
       board.push(rowCells);
     }
@@ -102,7 +109,6 @@ export class SudokuEngine {
   // Placeholder for solver integration
   public async solve(): Promise<boolean> {
     await Promise.resolve();
-    console.log("Solving...");
     const success = this.module!._runSolver();
     console.log("Solver returned:", success);
     this.update();
@@ -110,8 +116,9 @@ export class SudokuEngine {
   }
 
   public async step(): Promise<boolean> {
-    console.log("Stepping...");
-    // TODO: Call WASM solver step
+    await Promise.resolve();
+    const status = this.module!._stepSolver();
+    console.log("Solver step:", status);
     this.update();
     return true;
   }
@@ -119,7 +126,7 @@ export class SudokuEngine {
   public reset(forward: boolean, mrv: boolean, lcv: boolean) {
     this.module!._initGame(forward, mrv, lcv);
     console.log("Game reset.");
-    this.update();
+    Promise.resolve().then(() => void this.update());
   }
 
   private update() {

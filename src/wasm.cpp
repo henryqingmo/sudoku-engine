@@ -1,24 +1,27 @@
+// #define __EMSCRIPTEN__
+
 #ifdef __EMSCRIPTEN__
 
+#include <iostream>
 #include <memory>
 
 #include "engine/solver.h"
-#include "heuristic/backtrack.h"
-#include "heuristic/forward.h"
+#include "heuristic/sbacktrack.h"
+#include "heuristic/sforward.h"
 
 using sudoku_engine::Board;
 using sudoku_engine::BoardCage;
 using sudoku_engine::BoardCell;
 using sudoku_engine::BoardOffset;
 
-using sudoku_engine::BacktrackHeuristic;
-using sudoku_engine::ForwardHeuristic;
+using sudoku_engine::SBacktrackHeuristic;
+using sudoku_engine::SForwardHeuristic;
 using sudoku_engine::Solver;
 
 // Global instances for WASM
 static Solver solver;
 static Board board;
-static std::unique_ptr<BacktrackHeuristic> heuristic = nullptr;
+static std::unique_ptr<SBacktrackHeuristic> heuristic = nullptr;
 
 static const BoardCage SAMPLE_CAGES[] = {
     {6, {{5, 1}}},
@@ -62,19 +65,32 @@ void initGame(bool forward, bool mrv, bool lcv) {
     constexpr std::size_t STEP_LIMIT = 100000000;
     board = Board();
     board.setCages(SAMPLE_CAGES);
-    heuristic =
-        forward ?
-            std::make_unique<ForwardHeuristic>(board, STEP_LIMIT, mrv, lcv) :
-            std::make_unique<BacktrackHeuristic>(board, STEP_LIMIT);
+    if (forward) {
+        heuristic =
+            std::make_unique<SForwardHeuristic>(board, STEP_LIMIT, mrv, lcv);
+    } else {
+        heuristic = std::make_unique<SBacktrackHeuristic>(board, STEP_LIMIT);
+    }
 }
 
 // Solve the puzzle
 bool runSolver() {
-    // TODO: Later allow users to step through the process etc.
     if (!heuristic)
         return false;
 
     return solver.solve(*heuristic);
+}
+
+int stepSolver() {
+    if (!heuristic)
+        return -1;
+    return static_cast<int>(heuristic->step());
+}
+
+std::uint16_t getBoardDomain(BoardOffset row, BoardOffset col) {
+    if (!heuristic)
+        return 0x01FF;
+    return heuristic->getDomain({row, col}).encode();
 }
 
 // Get board value at position (0-based indexing)

@@ -89,7 +89,7 @@ const isCageTopLeft = computed<boolean>(() =>
     <!-- Cage Sum Indicator -->
     <div
       v-if="isCageTopLeft && cell.cage"
-      class="absolute top-0.5 left-1 text-[15px] font-bold text-indigo-500/80 z-10 bg-white/80 px-0.5 rounded"
+      class="absolute top-0.5 left-1 text-[15px] font-bold text-indigo-500/85 z-10 bg-white/80 px-0.5 rounded"
     >
       {{ cell.cage.sum }}
     </div>
