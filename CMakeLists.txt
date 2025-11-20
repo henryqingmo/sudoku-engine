@@ -41,7 +41,7 @@ if(EMSCRIPTEN)
     
     # Export functions for web interface
     target_link_options(${PROJECT_NAME} PRIVATE
-        -sEXPORTED_FUNCTIONS=_initSolver,_solvePuzzle,_getBoardValue,_cleanupSolver,_main
+        -sEXPORTED_FUNCTIONS=_initGame,_runSolver,_getBoardValue,_main
         -sEXPORTED_RUNTIME_METHODS=ccall,cwrap
     )
     

@@ -13,13 +13,13 @@ const emit = defineEmits<{
 
 <template>
   <div class="flex flex-col gap-3 w-full">
-    <button
+    <!-- <button
       @click="emit('load-sample')"
       class="w-full px-4 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       :disabled="solving"
     >
       <span class="text-lg"></span> Load Sample
-    </button>
+    </button> -->
 
     <div class="grid grid-cols-2 gap-3">
         <button

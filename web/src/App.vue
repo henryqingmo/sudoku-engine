@@ -1,35 +1,17 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import SudokuGrid from "./components/SudokuGrid.vue";
+import { onMounted, reactive, ref } from "vue";
 import ControlPanel from "./components/ControlPanel.vue";
+import SudokuGrid from "./components/SudokuGrid.vue";
 import { SudokuEngine } from "./lib/sudoku";
 
 const engine = new SudokuEngine();
 const isSolving = ref(false);
 
-function loadSample() {
-  engine.reset();
-
-  // Example Killer Sudoku setup (simplified)
-  // Cage 1: Sum 3 (1, 2) at (0,0), (0,1)
-  engine.addCage({
-    id: "c1",
-    sum: 3,
-    cells: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
-  });
-
-  // Cage 2: Sum 15 (0,2), (0,3), (1,2)
-  engine.addCage({
-    id: "c2",
-    sum: 15,
-    cells: [{ row: 0, col: 2 }, { row: 0, col: 3 }, { row: 1, col: 2 }],
-  });
-
-  // Some initial values (standard sudoku clues)
-  const values: (number | null)[][] = Array.from({ length: 9 }, () => Array(9).fill(null));
-
-  engine.loadPuzzle(values);
-}
+const heuristics = reactive({
+  forward: false,
+  mrv: false,
+  lcv: false,
+});
 
 async function solve() {
   isSolving.value = true;
@@ -44,8 +26,16 @@ async function step() {
 }
 
 function reset() {
-  engine.reset();
+  engine.reset(heuristics.forward, heuristics.mrv, heuristics.lcv);
 }
+
+const engineReady = ref(false);
+
+onMounted(() => {
+  engine.init()
+    .then(() => engineReady.value = true)
+    .then(reset);
+});
 
 </script>
 
@@ -59,7 +49,8 @@ function reset() {
           <div class="size-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
             <span class="text-white font-bold text-xl">K</span>
           </div>
-          <h1 class="text-2xl font-bold tracking-tight text-slate-900">Killer Sudoku <span class="text-indigo-600">Solver</span></h1>
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900">Killer Sudoku <span
+              class="text-indigo-600">Solver</span></h1>
         </div>
         <div class="text-sm font-medium text-slate-500">
           v1.0.1
@@ -74,11 +65,10 @@ function reset() {
           <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 class="text-lg font-semibold mb-4 text-slate-800">Controls</h2>
             <ControlPanel
-                :solving="isSolving"
-                @load-sample="loadSample"
-                @solve="solve"
-                @step="step"
-                @reset="reset"
+              :solving="isSolving"
+              @solve="solve"
+              @step="step"
+              @reset="reset"
             />
           </div>
 
@@ -93,9 +83,12 @@ function reset() {
 
         <!-- Right Column: The Grid -->
         <div class="flex-1 w-full max-w-2xl order-1 lg:order-2 flex justify-center">
-           <div class="w-full bg-white p-2 rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100">
-              <SudokuGrid :engine="engine" />
-           </div>
+          <div class="w-full bg-white p-2 rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100">
+            <SudokuGrid
+              v-if="engineReady"
+              :engine
+            />
+          </div>
         </div>
 
       </main>
