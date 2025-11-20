@@ -44,6 +44,13 @@ function onCellClick(r: number, c: number) {
   }
 }
 
+function isSameCage(cell: CellState, r2: number, c2: number): boolean {
+    if (r2 < 0 || r2 >= 9 || c2 < 0 || c2 >= 9) return false;
+    const other = board.value[r2]?.[c2];
+    if (!other) return false;
+    return !!cell.cageId && !!other.cageId && cell.cageId === other.cageId;
+}
+
 </script>
 
 <template>
@@ -69,6 +76,10 @@ function onCellClick(r: number, c: number) {
               :cage="getCage(cell.cageId)"
               :is-cage-top-left="isCageTopLeft(r, c, cell.cageId)"
               :selected="selectedCell?.r === r && selectedCell?.c === c"
+              :same-cage-top="isSameCage(cell, r - 1, c)"
+              :same-cage-bottom="isSameCage(cell, r + 1, c)"
+              :same-cage-left="isSameCage(cell, r, c - 1)"
+              :same-cage-right="isSameCage(cell, r, c + 1)"
               @update:selected="onCellClick(r, c)"
             />
           </div>

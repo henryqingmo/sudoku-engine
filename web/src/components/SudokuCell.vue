@@ -9,6 +9,10 @@ const props = defineProps<{
   col: number;
   cage?: Cage;
   isCageTopLeft?: boolean;
+  sameCageTop?: boolean;
+  sameCageBottom?: boolean;
+  sameCageLeft?: boolean;
+  sameCageRight?: boolean;
 }>();
 
 const isSelected = defineModel<boolean>("selected");
@@ -26,13 +30,36 @@ const cellClasses = computed(() => {
 
 // Cage styling
 const cageClasses = computed(() => {
-  if (!props.cage) return {};
-  return {
-    // Use a subtle dashed border for cages
-    "after:absolute after:inset-0.5 after:border-2 after:border-dashed after:border-indigo-200/70 after:rounded-sm after:pointer-events-none": true,
-    // And a very subtle background tint
-    "bg-indigo-50/30": !isSelected.value && !props.cell.isFixed,
-  };
+    if (!props.cage) return {};
+    return {
+        // Use a subtle dashed border for cages
+        'after:absolute after:border-dashed after:border-indigo-300/80 after:pointer-events-none': true,
+        
+        // Borders: Only draw border if neighbor is NOT in same cage
+        'after:border-t-2': !props.sameCageTop,
+        'after:border-b-2': !props.sameCageBottom,
+        'after:border-l-2': !props.sameCageLeft,
+        'after:border-r-2': !props.sameCageRight,
+
+        // Insets: If neighbor is in same cage, extend to edge (0). Else leave gap (0.5 = 2px)
+        'after:top-0.5': !props.sameCageTop,
+        'after:top-0': props.sameCageTop,
+        'after:bottom-0.5': !props.sameCageBottom,
+        'after:bottom-0': props.sameCageBottom,
+        'after:left-0.5': !props.sameCageLeft,
+        'after:left-0': props.sameCageLeft,
+        'after:right-0.5': !props.sameCageRight,
+        'after:right-0': props.sameCageRight,
+
+        // Rounded corners for the cage "blob"
+        // This is tricky with individual borders. 
+        // We can try to round corners where borders meet.
+        // But standard rounded-sm might look okay if we have gaps.
+        'after:rounded-sm': !props.sameCageTop && !props.sameCageLeft, // Top-left corner of cage
+
+        // And a very subtle background tint
+        'bg-indigo-50/30': !isSelected.value && !props.cell.isFixed
+    }
 });
 
 </script>
