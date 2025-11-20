@@ -1,4 +1,4 @@
-import { reactive } from 'vue';
+import { reactive } from "vue";
 
 export interface CellCoords {
   row: number;
@@ -36,7 +36,7 @@ export class SudokuEngine {
         value: null,
         domain: new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]),
         isFixed: false,
-      }))
+      })),
     );
   }
 
@@ -47,11 +47,11 @@ export class SudokuEngine {
         const row = values[r];
         if (!row) continue;
         const val = row[c];
-        
+
         const cell = this.board[r]?.[c];
         if (cell) {
-            cell.value = (val === 0 || val === undefined) ? null : val;
-            cell.isFixed = cell.value !== null;
+          cell.value = (val === 0 || val === undefined) ? null : val;
+          cell.isFixed = cell.value !== null;
         }
       }
     }
@@ -63,7 +63,7 @@ export class SudokuEngine {
       if (this.isValidCell(cell.row, cell.col)) {
         const boardCell = this.board[cell.row]?.[cell.col];
         if (boardCell) {
-            boardCell.cageId = cage.id;
+          boardCell.cageId = cage.id;
         }
       }
     }
@@ -100,10 +100,10 @@ export class SudokuEngine {
       for (let c = 0; c < 9; c++) {
         const cell = this.board[r]?.[c];
         if (cell) {
-            cell.value = null;
-            cell.domain = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-            cell.isFixed = false;
-            cell.cageId = undefined;
+          cell.value = null;
+          cell.domain = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+          cell.isFixed = false;
+          cell.cageId = undefined;
         }
       }
     }
