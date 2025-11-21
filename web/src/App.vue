@@ -15,7 +15,7 @@ const heuristics = ref({
 
 watch(heuristics, (heuristics) => {
   engine.reset(heuristics.forward, heuristics.mrv, heuristics.lcv);
-});
+}, { deep: true });
 
 async function solve() {
   reset();
@@ -109,12 +109,23 @@ onMounted(() => {
             />
           </div>
 
-          <div class="bg-indigo-50 rounded-2xl p-6 border border-indigo-100">
-            <h3 class="text-indigo-900 font-semibold mb-2">How it works</h3>
-            <p class="text-indigo-700/80 text-sm leading-relaxed">
-              This visualizer demonstrates the constraint satisfaction algorithm.
-              Watch as the engine propagates constraints through cages and rows.
-            </p>
+          <div class="bg-indigo-50 rounded-2xl px-6 py-4 border border-indigo-100">
+            <h3 class="text-indigo-900 font-semibold mb-4">How it works</h3>
+            <div class="text-indigo-700/80 text-sm leading-relaxed space-y-2">
+              <p>
+                This visualizer demonstrates the constraint satisfaction algorithm.
+                Watch as the engine propagates constraints through cages and rows.
+              </p>
+
+              <p>
+                The engine is written in C++ and is the same one used for our native benchmarking.
+                In order to reuse it for the frontend, we have compiled it into WebAssembly
+                using Emscripten so we can invoke it via JavaScript.
+              </p>
+              <p>
+                It runs entirely within your browser!
+              </p>
+            </div>
           </div>
         </div>
 

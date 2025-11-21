@@ -69,8 +69,9 @@ const emit = defineEmits<{
     <div>
       <div class="flex items-center gap-3">
         <input
-          type="checkbox"
           v-model="model.forward"
+          type="checkbox"
+          :disabled="solving"
         />
         Forward Checking
       </div>
@@ -79,13 +80,15 @@ const emit = defineEmits<{
         class="flex items-center gap-3"
       >
         <input
-          type="checkbox"
           v-model="model.mrv"
+          type="checkbox"
+          :disabled="solving"
         />
         MRV
         <input
-          type="checkbox"
           v-model="model.lcv"
+          type="checkbox"
+          :disabled="solving"
         />
         LCV
       </div>
@@ -93,7 +96,8 @@ const emit = defineEmits<{
 
     <button
       @click="emit('reset')"
-      class="w-full px-4 py-3 text-rose-600 font-medium rounded-xl hover:bg-rose-50 transition-colors mt-2"
+      :disabled="solving"
+      class="w-full px-4 py-3 text-rose-600 font-medium rounded-xl hover:bg-rose-50 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       Reset Board
     </button>

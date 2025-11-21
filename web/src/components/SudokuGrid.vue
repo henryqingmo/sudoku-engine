@@ -28,6 +28,7 @@ function isSameCage(cell: CellState, r2: number, c2: number): boolean {
 }
 
 function updateBoard() {
+  // console.debug("Board updated.");
   board.value = props.engine.getBoard();
 }
 

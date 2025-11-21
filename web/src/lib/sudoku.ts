@@ -110,7 +110,7 @@ export class SudokuEngine {
   public async solve(): Promise<boolean> {
     await Promise.resolve();
     const success = this.module!._runSolver();
-    console.log("Solver returned:", success);
+    console.debug("Solver returned:", success);
     this.update();
     return !!success;
   }
@@ -118,7 +118,7 @@ export class SudokuEngine {
   public async step(): Promise<boolean> {
     await Promise.resolve();
     const status = this.module!._stepSolver();
-    console.log("Solver step:", status);
+    console.debug("Solver step:", status);
     this.update();
     return true;
   }

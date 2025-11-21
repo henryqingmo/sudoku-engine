@@ -38,7 +38,9 @@ if(EMSCRIPTEN)
         -sMODULARIZE=1
         -sEXPORT_NAME=createSudokuModule
         -sENVIRONMENT=web
+        -fsanitize=address
         -fsanitize=undefined
+        -g
     )
     
     # Export functions for web interface
