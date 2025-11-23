@@ -12,6 +12,8 @@ export default defineConfig({
     vueDevTools(),
     tailwindcss(),
   ],
+  // Use relative paths for GitHub Pages compatibility
+  // This works for both root domain and subpath deployments
   base: "./",
   resolve: {
     alias: {
