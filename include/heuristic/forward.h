@@ -10,8 +10,8 @@
 #include "backtrack.h"
 
 SUDOKU_NAMESPACE {
-    class ForwardHeuristic final : public BacktrackHeuristic {
-    private:
+    class ForwardHeuristic : public virtual BacktrackHeuristic {
+    protected:
         using DomainDelta = std::pair<BoardPosition, BoardCellDomain>;
         using DomainDeltas = utils::ArrayVector<DomainDelta>;
 
@@ -43,7 +43,6 @@ SUDOKU_NAMESPACE {
     protected:
         bool expand(const BoardPosition& pos) override;
 
-    private:
         RefinedDomains forwardCheck(const BoardPosition& pos) const;
 
         BoardCellDomain getValidCageValues(const BoardCage& cage) const;

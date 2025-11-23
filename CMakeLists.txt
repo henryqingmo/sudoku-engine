@@ -31,17 +31,21 @@ if(EMSCRIPTEN)
         -sWASM=1
         -sALLOW_MEMORY_GROWTH=1
         -sNO_EXIT_RUNTIME=0
+        -sNO_DISABLE_EXCEPTION_CATCHING
         -sINVOKE_RUN=0
         -sASSERTIONS=1
         -sEXPORT_ES6=1
         -sMODULARIZE=1
         -sEXPORT_NAME=createSudokuModule
         -sENVIRONMENT=web
+        -fsanitize=address
+        -fsanitize=undefined
+        -g
     )
     
     # Export functions for web interface
     target_link_options(${PROJECT_NAME} PRIVATE
-        -sEXPORTED_FUNCTIONS=_initSolver,_solvePuzzle,_getBoardValue,_cleanupSolver,_main
+        -sEXPORTED_FUNCTIONS=_initGame,_runSolver,_stepSolver,_getBoardValue,_getBoardDomain,_main
         -sEXPORTED_RUNTIME_METHODS=ccall,cwrap
     )
     

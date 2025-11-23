@@ -26,9 +26,9 @@ Makefile
 *.data
 
 # Frontend WASM artifacts (auto-generated)
-web/public/wasm/*.js
-web/public/wasm/*.mjs
-web/public/wasm/*.wasm
+# web/public/wasm/*.js
+# web/public/wasm/*.mjs
+# web/public/wasm/*.wasm
 
 # IDE
 .vs/
