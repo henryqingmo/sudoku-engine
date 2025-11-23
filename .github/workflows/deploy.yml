@@ -29,33 +29,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
-      # ✅ Use a *recent* version of the action
-      - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v14
-        with:
-          # Pin a real version if you want; otherwise you can just omit this
-          version: 3.1.69
-
-      # (Optional but very useful) sanity check
-      - name: Verify emsdk
-        run: |
-          emcc -v
-          emcmake cmake --version
-
-      - name: Build WASM
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p build-wasm
-          cd build-wasm
-          emcmake cmake ..
-          cmake --build .
-
-      - name: Verify WASM artifacts
-        run: |
-          ls -la web/public/wasm/
-          test -f web/public/wasm/sudoku-engine.js
-          test -f web/public/wasm/sudoku-engine.wasm
-
       - name: Install frontend dependencies
         working-directory: web
         run: npm ci
