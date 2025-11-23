@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
+import githubLogo from "./assets/github-mark.svg";
 import ControlPanel from "./components/ControlPanel.vue";
 import SudokuGrid from "./components/SudokuGrid.vue";
 import { SudokuEngine } from "./lib/sudoku";
@@ -79,16 +80,28 @@ onMounted(() => {
 
       <!-- Header -->
       <header class="flex items-center justify-between mb-12">
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-4">
           <div class="size-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-200">
             <span class="text-white font-bold text-xl">K</span>
           </div>
           <h1 class="text-2xl font-bold tracking-tight text-slate-900">Killer Sudoku <span
               class="text-indigo-600">Solver</span></h1>
         </div>
-        <div class="text-sm font-medium text-slate-500">
-          v1.0.1
-        </div>
+        <a
+          class="flex items-center gap-4"
+          href="https://github.com/henryqingmo/sudoku-engine"
+          target="_blank"
+          title="GitHub Repository"
+        >
+          <div class="text-sm font-medium text-slate-500">
+            v1.1.0
+          </div>
+
+          <img
+            :src="githubLogo"
+            class="h-8"
+          />
+        </a>
       </header>
 
       <!-- Main Content -->

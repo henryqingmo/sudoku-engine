@@ -279,7 +279,7 @@ int stepSolver();
 int main(int argc, char* argv[]) {
     using sudoku_engine::Solver;
 
-    std::cout << "Killer Sudoku Solver v0.1.0" << std::endl;
+    std::cout << "Killer Sudoku Solver v1.1.0" << std::endl;
     std::cout << "===========================" << std::endl;
 
     std::unique_ptr<Options> options;
